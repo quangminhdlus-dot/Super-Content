@@ -13,6 +13,8 @@ import {
 } from "./model.js";
 import * as db from "./storage.js";
 import { cloud, fetchVideos, saveVideo } from "./cloud.js";
+import { initResearch, showResearch, resetResearch } from "./research/ui.js";
+import { provenance } from "./research/client.js";
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#dialog");
 const paths = {
@@ -107,10 +109,23 @@ function updateStatus() {
     .querySelectorAll("[data-status]")
     .forEach((el) => (el.textContent = status()));
 }
+initResearch({
+  getUser: () => user,
+  onImported: async () => {
+    await sync();
+    await reload();
+    document.querySelector(".sidebar nav").innerHTML = nav();
+    document.querySelector(".mobile-nav").innerHTML = nav();
+  },
+});
 function render() {
-  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content <span>/</span> ${e(editing ? "Soạn thảo" : LABELS[STAGES.indexOf(view)] || (view === "archive" ? "Lưu trữ" : "Thùng rác"))}</span><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice"><span class="status-dot"></span><span data-status>${e(status())}</span><button data-action="${user ? "sync" : "settings"}">${user ? "Đồng bộ lại" : "Tài khoản & cài đặt"} ${icon("arrow")}</button></div><div id="content">${editing ? editorHTML() : listHTML()}</div></main><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
-  if (!editing) renderRows();
-  else bindEditor();
+  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content <span>/</span> ${e(editing ? "Soạn thảo" : LABELS[STAGES.indexOf(view)] || (view === "research" ? "Nghiên cứu YouTube" : view === "archive" ? "Lưu trữ" : "Thùng rác"))}</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice"><span class="status-dot"></span><span data-status>${e(status())}</span><button data-action="${user ? "sync" : "settings"}">${user ? "Đồng bộ lại" : "Tài khoản & cài đặt"} ${icon("arrow")}</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
+  if (view === "research") showResearch(document.querySelector("#content"));
+  else if (!editing) renderRows();
+  else {
+    bindEditor();
+    showProvenance();
+  }
   renderSelection();
 }
 function publishedIcon() {
@@ -143,7 +158,7 @@ function renderSelection() {
   const n = selected.size,
     i = STAGES.indexOf(view);
   bar.innerHTML =
-    n && !editing
+    n && !editing && view !== "research"
       ? `<div class="selection-bar"><span><b>${n}</b> đã chọn</span><button data-action="deselect">Bỏ chọn</button><div class="selection-actions">${i > 0 ? `<button data-move="${STAGES[i - 1]}" aria-label="Về ${LABELS[i - 1]}">${icon("back")} ${LABELS[i - 1]}</button>` : ""}${i >= 0 && i < 4 ? `<button class="primary" data-move="${STAGES[i + 1]}">${i === 2 ? "Đã quay xong → Hoàn thiện" : `Chuyển sang ${LABELS[i + 1]}`} ${icon("arrow")}</button>` : ""}${view === "archive" || view === "trash" ? '<button class="primary" data-action="restore">Khôi phục</button>' : `<button data-action="archive">${icon("archive")} Lưu trữ</button>`}${view === "trash" ? '<button class="danger" data-action="purge">Xóa vĩnh viễn</button>' : `<button class="danger" data-action="delete">${icon("trash")} Xóa</button>`}</div></div>`
       : "";
 }
@@ -340,6 +355,33 @@ function bindEditor() {
     }),
   );
 }
+async function showProvenance() {
+  const video = videos().find((v) => v.id === editing);
+  if (!video) return;
+  const target = document.createElement("section");
+  target.className = "research-provenance";
+  document.querySelector(".details")?.append(target);
+  try {
+    const links = await provenance(user, video);
+    if (!target.isConnected) return;
+    target.innerHTML = links.length
+      ? "<h3>Hồ sơ nghiên cứu gốc</h3>" +
+        links
+          .map((link) => {
+            const snapshot = link.snapshot || { video: link };
+            const proposal = snapshot.video || {},
+              data = proposal.data || {},
+              analysis = proposal.analysis || {};
+            return `<details><summary>${e(data.title || "Nguồn YouTube")}</summary><p>${e((proposal.sources || []).join(" · "))}</p><p>${e(analysis.angle || "")}</p><pre>${e(JSON.stringify(snapshot, null, 2))}</pre></details>`;
+          })
+          .join("")
+      : "";
+  } catch {
+    if (target.isConnected)
+      target.textContent =
+        "Chưa tải được hồ sơ nghiên cứu. Nguồn và dữ liệu trên thiết bị vẫn được giữ.";
+  }
+}
 function settings() {
   modal({
     title: "Cài đặt",
@@ -442,7 +484,7 @@ async function sync() {
       );
     await reload();
     syncMessage = "";
-    if (!editing && !dialog.open) render();
+    if (!editing && !dialog.open && view !== "research") render();
     else updateStatus();
   } catch (err) {
     syncMessage = "Chưa đồng bộ · Bản trên thiết bị được giữ";
@@ -457,6 +499,7 @@ async function changeSession(session) {
   const newUser = session?.user || null;
   if (newUser?.id === user?.id && generation) return;
   generation++;
+  resetResearch();
   user = newUser;
   scope = user?.id || "demo";
   selected.clear();

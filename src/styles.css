@@ -986,3 +986,266 @@ dialog::backdrop {
 .list-caption label {
   min-height: 44px;
 }
+/* Research remains separate from the five production stages. */
+select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px;
+  min-width: 0;
+  font-size: max(16px, 0.85rem);
+  max-width: 100%;
+}
+select:focus {
+  outline: 2px solid var(--accent);
+}
+.research-shortcut {
+  margin-left: auto;
+  margin-right: 10px;
+  font-size: 0.72rem;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+.research-grid {
+  display: grid;
+  grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 18px;
+  align-items: start;
+}
+.research-settings,
+.run-panel {
+  padding: 22px;
+}
+.research-settings h2,
+.run-panel h2 {
+  margin-bottom: 20px;
+}
+.research-settings h3 {
+  font-size: 0.86rem;
+}
+.research-settings small {
+  font-weight: 400;
+}
+.research-settings .muted {
+  font-size: 0.7rem;
+  margin-top: 15px;
+}
+.research-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.section-spacer {
+  margin-top: 28px;
+}
+.source-list > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.source-list a {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-size: 0.76rem;
+  flex: 1;
+}
+.source-list button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.source-list input {
+  width: 100%;
+  min-width: 0;
+}
+.date-range {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.date-range .field {
+  flex: 1;
+  min-width: 120px;
+}
+.run-panel p {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.run-panel .warning {
+  color: #ffb57c;
+}
+.proposal-section {
+  margin-top: 25px;
+}
+.proposal-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.proposal-heading .field {
+  font-size: 0.7rem;
+}
+.proposal-card {
+  padding: 20px;
+  margin-top: 16px;
+}
+.proposal-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.proposal-card img {
+  max-width: 120px;
+  height: auto;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.proposal-card h3 {
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+.proposal-card h3 a:hover {
+  color: var(--accent);
+}
+.proposal-card .muted {
+  font-size: 0.68rem;
+  margin: 7px 0;
+}
+.proposal-card p,
+.proposal-card li {
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+.proposal-card ul {
+  padding-left: 20px;
+  color: var(--muted);
+}
+.research-metrics {
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.proposal-angle {
+  background: var(--raised);
+  border-left: 2px solid var(--accent);
+  padding: 12px;
+}
+.proposal-card details,
+.run-panel details {
+  font-size: 0.75rem;
+}
+.proposal-select {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.proposal-select label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.proposal-actions {
+  position: sticky;
+  bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 15px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  z-index: 10;
+}
+.proposal-actions button {
+  font-size: 0.74rem;
+}
+.research-provenance {
+  margin-top: 22px;
+  font-size: 0.8rem;
+}
+.research-provenance pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.65rem;
+  max-height: 350px;
+  overflow: auto;
+}
+.research-provenance h3 {
+  margin-bottom: 12px;
+}
+@media (max-width: 1150px) {
+  .research-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .research-settings {
+    max-width: 100%;
+  }
+  .research-settings form {
+    max-width: 650px;
+  }
+  .research-shortcut span {
+    display: none;
+  }
+}
+@media (max-width: 800px) {
+  .research-shortcut {
+    margin-right: 0;
+    padding: 8px;
+    min-width: 44px;
+  }
+  .research-grid {
+    gap: 18px;
+  }
+  .research-settings,
+  .run-panel {
+    padding: 17px;
+  }
+  .proposal-card {
+    padding: 13px;
+  }
+  .proposal-card-top {
+    flex-wrap: wrap;
+  }
+  .proposal-card-top > div {
+    flex-basis: 100%;
+  }
+  .proposal-card-top .row-selector {
+    min-width: 44px;
+  }
+  .proposal-actions {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  .proposal-actions button {
+    flex: 1;
+  }
+  .proposal-card img {
+    max-width: 170px;
+  }
+  .topbar .breadcrumb {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .research-grid .field input {
+    font-size: 16px;
+  }
+  .proposal-heading h2 {
+    font-size: 1.1rem;
+  }
+}

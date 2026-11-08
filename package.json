@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
     "test:sync": "playwright test --config playwright.cloud.config.js",
-    "format": "prettier --write src scripts tests *.js index.html"
+    "format": "prettier --write src server scripts tests *.js index.html",
+    "research:server": "node --env-file-if-exists=.env.server.local server/index.js"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.2.0",

@@ -25,6 +25,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_RESEARCH_API_URL: ${{ vars.VITE_RESEARCH_API_URL }}
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run test:sync

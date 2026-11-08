@@ -58,9 +58,22 @@ Sau khi có URL HTTPS: mở bằng Safari trên iPhone → Chia sẻ → **Thêm
 
 Đã kiểm tra Chromium desktop/viewport cảm ứng 390×844. Chưa kiểm thử trên iPhone/Safari thật. Chưa xác nhận triển khai Pages hoặc đồng bộ với Supabase thật.
 
+## Nghiên cứu YouTube
+
+Bổ sung khu vực Nghiên cứu YouTube, cấu hình nguồn, Quét ngay qua máy chủ, thống kê theo thời gian, điểm cơ hội và danh sách đề xuất cần duyệt. Năm công đoạn hiện tại giữ nguyên.
+
+Hướng dẫn từng bước: [Supabase, YouTube API, máy chủ và cách kiểm thử](docs/youtube-research.md). Khóa YouTube/OpenAI chỉ đặt ở backend. Migration `002_youtube_research.sql` cần bạn phê duyệt trước khi chạy; ứng dụng không tự thay đổi DB thật.
+
+```sh
+npm run research:server # cần secrets máy chủ theo server/.env.example
+npm run test:sync       # kiểm thử đồng bộ/nghiên cứu qua API giả lập
+```
+
+Chưa bật lịch tự động, thông báo đề xuất hay MCP. Chưa cấu hình Supabase/YouTube/OpenAI thật trong môi trường này.
+
 ## Kết quả xác thực trong môi trường phát triển
 
-- `npm test`: 4 kiểm thử đạt, gồm RLS PostgreSQL giữa hai tài khoản và so sánh revision.
-- `npm run test:e2e`: 6 kiểm thử đạt ở desktop và mobile viewport, bao gồm 20 tiêu đề/7 video, các công đoạn, kịch bản dài và con trỏ, ngoại tuyến, trùng tiêu đề, tìm kiếm, xác nhận xóa và lỗi bộ nhớ.
-- `npm run test:sync`: kiểm thử hai phiên trình duyệt với **API Supabase giả lập**, giữ dữ liệu khi lỗi gửi, tải lại trang, giải quyết xung đột và không gian tài khoản. Không phải kiểm thử đồng bộ trên Supabase thật.
+- `npm test`: 11 kiểm thử đạt, gồm nghiệp vụ, nghiên cứu YouTube/AI giả lập, API xác thực, RLS PostgreSQL, giới hạn quét và duyệt chống trùng.
+- `npm run test:e2e`: 8 kiểm thử đạt ở desktop và mobile viewport, gồm quy trình 20 tiêu đề/7 video, kịch bản, ngoại tuyến, lỗi lưu trữ và cấu hình/duyệt đề xuất nghiên cứu.
+- `npm run test:sync`: 2 kiểm thử đạt với **API Supabase và máy chủ nghiên cứu giả lập**, gồm đồng bộ hai phiên, xung đột, Quét ngay, lỗi quota và chuyển đề xuất vào kho. Không phải kiểm thử dịch vụ thật.
 - Build production đã được chạy thành công. Để xuất bản, chọn Pages Source là GitHub Actions rồi kiểm tra job `deploy`. Chỉ xác nhận URL ứng dụng hoạt động sau khi job triển khai thành công.
