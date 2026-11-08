@@ -1264,6 +1264,80 @@ select:focus {
   color: var(--accent);
   background: #ff7a1a12;
 }
+/* Only the two-column research workspace owns viewport scrolling.
+   Other research tabs and production pages retain their document flow. */
+@media (min-width: 801px) {
+  body:has(#content > .research-grid) main {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  main:has(#content > .research-grid) > .topbar {
+    flex: 0 0 64px;
+  }
+  main:has(#content > .research-grid) > .local-notice {
+    flex-shrink: 0;
+    margin-top: 10px;
+  }
+  #content:has(> .research-grid) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0 auto;
+    padding-top: 0;
+    overflow: hidden;
+  }
+  #content:has(> .research-grid) > :not(.research-grid) {
+    flex-shrink: 0;
+  }
+  #content:has(> .research-grid) > .research-tabs {
+    margin: 12px 0;
+  }
+  #content:has(> .research-grid) > .page-heading {
+    margin: 4px 0 12px;
+  }
+  #content:has(> .research-grid) > p {
+    margin: 4px 0;
+    font-size: 0.72rem;
+  }
+  #content > .research-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+    align-items: stretch;
+    margin: 12px 0 16px;
+    overflow: hidden;
+  }
+  .research-grid > .research-settings,
+  .research-grid > .research-results {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+  .research-grid > .research-results {
+    padding-right: 4px;
+  }
+  .research-settings .date-range .field {
+    flex-basis: 100%;
+  }
+  .research-grid > :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
+@media (max-width: 800px) {
+  .research-grid > .research-settings,
+  .research-grid > .research-results {
+    overflow: visible;
+  }
+}
 .personal-panel {
   padding: 24px;
   margin-bottom: 24px;
