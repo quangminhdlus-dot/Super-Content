@@ -1011,7 +1011,7 @@ select:focus {
 }
 .research-grid {
   display: grid;
-  grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(270px, min(440px, 44%)) minmax(0, 1fr);
   gap: 24px;
   margin-top: 18px;
   align-items: start;
@@ -1308,7 +1308,7 @@ select:focus {
   #content > .research-grid {
     flex: 1;
     min-height: 0;
-    grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+    grid-template-columns: minmax(270px, min(440px, 44%)) minmax(0, 1fr);
     align-items: stretch;
     margin: 12px 0 16px;
     overflow: hidden;
@@ -1341,6 +1341,50 @@ select:focus {
 .personal-panel {
   padding: 24px;
   margin-bottom: 24px;
+}
+.research-settings textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 100px;
+}
+.mission-options,
+.search-plan,
+.search-advanced {
+  margin: 16px 0;
+}
+.mission-options summary,
+.search-plan summary,
+.search-advanced summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.plan-group {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.plan-group input:not([type="checkbox"]) {
+  width: 100%;
+}
+.search-plan dt {
+  color: var(--muted);
+  margin-top: 10px;
+}
+.search-plan dd {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.search-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+  color: var(--accent);
+}
+.mission-history {
+  overflow-wrap: anywhere;
+  padding-top: 12px;
 }
 .personal-heading {
   display: flex;

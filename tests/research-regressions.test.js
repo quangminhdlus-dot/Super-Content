@@ -347,7 +347,7 @@ test("job HTTP routes verify auth, dispatch steps, reject bad/oversize bodies an
     const large = await fetch(`${root}/api/research/jobs`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ query: "ứ".repeat(800) }),
+      body: JSON.stringify({ query: "ứ".repeat(45000) }),
     });
     assert.equal(large.status, 413);
     assert.equal((await large.json()).code, "BODY_LIMIT");

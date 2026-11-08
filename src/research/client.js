@@ -135,12 +135,17 @@ export async function scanNow({
   kind = "research",
   query = "",
   resumeId = null,
+  mission = undefined,
   onProgress = () => {},
   shouldContinue = () => true,
 } = {}) {
   let job = resumeId
     ? { id: resumeId, status: "pending" }
-    : await jobRequest("/api/research/jobs", { kind, query });
+    : await jobRequest("/api/research/jobs", { kind, query, mission });
+  if (!resumeId && mission && !job.settings?.mission)
+    throw new Error(
+      "Máy chủ chưa nhận nhiệm vụ AI. Cập nhật backend và migration 004, hoặc hoàn tất/hủy tiến trình cũ trước khi thử lại.",
+    );
   while (!["completed", "cancelled"].includes(job.status) && shouldContinue()) {
     job = await jobRequest(`/api/research/jobs/${job.id}/step`);
     onProgress(job);

@@ -82,7 +82,7 @@ export function createResearchServer({
         let bytes = 0;
         for await (const chunk of req.iterator({ destroyOnReturn: false })) {
           bytes += chunk.length;
-          if (bytes > 2048) {
+          if (bytes > 131072) {
             req.resume();
             throw new ResearchError("BODY_LIMIT", "Yêu cầu quá lớn.", 413);
           }

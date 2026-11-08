@@ -160,6 +160,16 @@ test("100 channels, criteria history and confirmed memory can be managed on desk
   );
   await tab(page, "Xóa ghi nhớ");
   await expect(page.locator(".memory-item")).toHaveCount(0);
+  await page.locator("[data-edit-decision]").selectOption("rejected");
+  await page
+    .locator("[data-edit-reason]")
+    .fill("Không còn phù hợp với định hướng");
+  await tab(page, "Lưu phản hồi đã sửa");
+  await expect(page.locator("[data-edit-reason]")).toHaveValue(
+    "Không còn phù hợp với định hướng",
+  );
+  await tab(page, "Xóa phản hồi");
+  await expect(page.locator("[data-edit-reason]")).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

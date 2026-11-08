@@ -159,7 +159,24 @@ export async function personalView(
     }</section>`;
   }
   function memoryHTML() {
-    return `<section class="panel personal-panel"><h2>Bộ nhớ học hỏi</h2><p class="muted">Chỉ những ghi nhớ đã xác nhận được dùng cho lần đánh giá tiếp theo. Không huấn luyện lại mô hình, không tự thay đổi tiêu chuẩn. Xóa ghi nhớ dừng việc truy xuất nó; lịch sử quyết định/đánh giá vẫn được giữ.</p><h3>Ghi nhớ đã lưu</h3>${data.memories.map((m) => `<article class="memory-item"><strong>${e(m.video_title || "Ghi nhớ cá nhân")}</strong><label class="field">Nội dung ghi nhớ<textarea data-memory-text="${m.id}" rows="3" maxlength="2000">${e(m.text)}</textarea></label><label class="field">Xu hướng<select data-memory-preference="${m.id}"><option value="positive" ${m.preference === "positive" ? "selected" : ""}>Ưu tiên</option><option value="negative" ${m.preference === "negative" ? "selected" : ""}>Thường loại</option></select></label><label><input type="checkbox" data-memory-confirmed="${m.id}" ${m.confirmed ? "checked" : ""}> Tôi xác nhận dùng ghi nhớ này</label><div class="research-buttons"><button data-save-memory="${m.id}">Lưu ghi nhớ</button><button class="danger" data-delete-memory="${m.id}">Xóa ghi nhớ</button></div></article>`).join("") || '<p class="muted">Chưa có ghi nhớ được xác nhận.</p>'}<h3 class="section-spacer">Lịch sử lựa chọn</h3>${data.feedback.map((f) => `<article class="history-item"><b>${e(decisions[f.decision])} · ${e(f.video_snapshot?.title || f.youtube_id)}</b><p>${e(f.reason || "Không ghi lý do")}</p><small>${when(f.created_at)} · Tiêu chuẩn lúc lựa chọn: ${e(data.versions.find((v) => v.id === f.criteria_version)?.revision || "Chưa có")} · Bản đánh giá: ${e(f.evaluated_version || "Chưa cá nhân hóa")}</small>${f.decision !== "later" && !data.memories.some((m) => m.feedback_id === f.id) ? `<button data-learn-feedback="${f.id}">Xác nhận ghi nhớ từ lựa chọn này</button>` : ""}</article>`).join("") || '<p class="muted">Đánh giá các video trong Đề xuất để xây dựng lịch sử.</p>'}<h3 class="section-spacer">Lịch sử đánh giá và giải thích</h3>${
+    return `<section class="panel personal-panel"><h2>Bộ nhớ học hỏi</h2><p class="muted">Chỉ những ghi nhớ đã xác nhận được dùng cho lần đánh giá tiếp theo. Không huấn luyện lại mô hình, không tự thay đổi tiêu chuẩn. Xóa ghi nhớ dừng việc truy xuất nó; lịch sử quyết định/đánh giá vẫn được giữ.</p><h3>Ghi nhớ đã lưu</h3>${data.memories.map((m) => `<article class="memory-item"><strong>${e(m.video_title || "Ghi nhớ cá nhân")}</strong><label class="field">Nội dung ghi nhớ<textarea data-memory-text="${m.id}" rows="3" maxlength="2000">${e(m.text)}</textarea></label><label class="field">Xu hướng<select data-memory-preference="${m.id}"><option value="positive" ${m.preference === "positive" ? "selected" : ""}>Ưu tiên</option><option value="negative" ${m.preference === "negative" ? "selected" : ""}>Thường loại</option></select></label><label><input type="checkbox" data-memory-confirmed="${m.id}" ${m.confirmed ? "checked" : ""}> Tôi xác nhận dùng ghi nhớ này</label><div class="research-buttons"><button data-save-memory="${m.id}">Lưu ghi nhớ</button><button class="danger" data-delete-memory="${m.id}">Xóa ghi nhớ</button></div></article>`).join("") || '<p class="muted">Chưa có ghi nhớ được xác nhận.</p>'}<h3 class="section-spacer">Lịch sử lựa chọn</h3>${
+      data.feedback
+        .map(
+          (f) =>
+            `<article class="history-item"><b>${e(decisions[f.decision])} · ${e(f.video_snapshot?.title || f.youtube_id)}</b><p>${e(f.reason || "Không ghi lý do")}</p><small>${when(f.created_at)} · Tiêu chuẩn lúc lựa chọn: ${e(data.versions.find((v) => v.id === f.criteria_version)?.revision || "Chưa có")} · Bản đánh giá: ${e(f.evaluated_version || "Chưa cá nhân hóa")}</small><p class="muted">Nhiệm vụ: ${e(f.research_context?.mission?.name || f.research_context?.mission?.description || "Chưa gắn nhiệm vụ")}</p><label class="field">Sửa lựa chọn<select data-edit-decision="${f.id}">${Object.entries(
+              decisions,
+            )
+              .map(
+                ([v, l]) =>
+                  `<option value="${v}" ${f.decision === v ? "selected" : ""}>${l}</option>`,
+              )
+              .join(
+                "",
+              )}</select></label><label class="field">Sửa lý do<textarea data-edit-reason="${f.id}" maxlength="2000">${e(f.reason)}</textarea></label><button data-edit-feedback="${f.id}">Lưu phản hồi đã sửa</button><button class="danger" data-delete-feedback="${f.id}">Xóa phản hồi</button>${f.decision !== "later" && !data.memories.some((m) => m.feedback_id === f.id) ? `<button data-learn-feedback="${f.id}">Xác nhận ghi nhớ từ lựa chọn này</button>` : ""}</article>`,
+        )
+        .join("") ||
+      '<p class="muted">Đánh giá các video trong Đề xuất để xây dựng lịch sử.</p>'
+    }<h3 class="section-spacer">Lịch sử đánh giá và giải thích</h3>${
       data.evaluations
         .slice(0, 50)
         .map(
@@ -174,6 +191,25 @@ export async function personalView(
     const b = ev.target.closest("button");
     if (!b) return;
     try {
+      if (b.dataset.editFeedback || b.dataset.deleteFeedback) {
+        const id = b.dataset.editFeedback || b.dataset.deleteFeedback;
+        if (
+          b.dataset.deleteFeedback &&
+          !confirm("Xóa phản hồi và ghi nhớ gắn với phản hồi này?")
+        )
+          return;
+        await store.editFeedback(
+          user,
+          id,
+          target.querySelector(`[data-edit-decision="${id}"]`).value,
+          target.querySelector(`[data-edit-reason="${id}"]`).value,
+          !!b.dataset.deleteFeedback,
+        );
+        notice =
+          "Đã cập nhật phản hồi. Ghi nhớ liên quan cần được xác nhận lại.";
+        await reload();
+        return;
+      }
       if (b.dataset.personal === "import") {
         const result = store.importChannels(
           target.querySelector("#bulk-channels").value,

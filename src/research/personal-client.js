@@ -176,6 +176,7 @@ export async function feedback(user, proposal, decision, reason = "") {
       decision,
       reason,
       video_snapshot: proposal.data,
+      research_context: proposal.analysis?.search_context || {},
       criteria_version: data.versions[0]?.id || null,
       evaluated_version: proposal.analysis?.criteria_version || null,
       created_at: new Date().toISOString(),
@@ -230,3 +231,43 @@ export async function cancelJob(user, id) {
   check(await cloud.rpc("cancel_content_research_job", { p_id: id }));
 }
 export { defaultCriteria, importChannels };
+
+export async function editFeedback(user, id, decision, reason, remove = false) {
+  if (
+    !remove &&
+    (!["chosen", "later", "rejected", "excellent"].includes(decision) ||
+      reason.length > 2000)
+  )
+    throw new Error("Phản hồi không hợp lệ.");
+  if (cloud && user) {
+    check(
+      await cloud.rpc("edit_content_feedback", {
+        p_id: id,
+        p_decision: decision,
+        p_reason: reason,
+        p_delete: remove,
+      }),
+    );
+    return;
+  }
+  await change(user, (data) => ({
+    ...data,
+    feedback: remove
+      ? data.feedback.filter((f) => f.id !== id)
+      : data.feedback.map((f) =>
+          f.id === id ? { ...f, decision, reason } : f,
+        ),
+    memories: remove
+      ? data.memories.filter((m) => m.feedback_id !== id)
+      : data.memories.map((m) =>
+          m.feedback_id === id
+            ? {
+                ...m,
+                confirmed: false,
+                text: reason || m.text,
+                preference: decision === "rejected" ? "negative" : "positive",
+              }
+            : m,
+        ),
+  }));
+}

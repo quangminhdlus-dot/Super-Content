@@ -129,6 +129,7 @@ test("configured research UI calls the authenticated server, shows errors and im
           id: "11111111-1111-1111-1111-111111111111",
           status: "pending",
           cursor: 0,
+          settings: route.request().postDataJSON(),
           tasks: [{ type: "evaluate" }],
         },
         headers: { "access-control-allow-origin": "*" },
@@ -182,6 +183,11 @@ test("configured research UI calls the authenticated server, shows errors and im
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page.locator("dialog")).not.toBeVisible();
   await page.locator(".research-shortcut").click();
+  await page
+    .locator("#mission-description")
+    .fill(
+      "Tìm video khoa học giúp người trưởng thành hiểu vấn đề và hành động.",
+    );
   await page.getByRole("button", { name: "Quét ngay", exact: true }).click();
   await expect(page.locator(".proposal-card")).toHaveCount(2);
   await expect(page.locator(".run-panel")).toContainText("Hoàn tất");

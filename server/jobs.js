@@ -1,6 +1,8 @@
+import { startMissionJob, planStep } from "./search-jobs.js";
+import { evaluateSearch, shortlist } from "./search-ai.js";
 import { ResearchError, validateSettings, parseChannel } from "./validation.js";
 import { YouTube } from "./youtube.js";
-import { scoreVideo, scoringContext } from "./scoring.js";
+import { scoreVideo, scoringContext, marketScore } from "./scoring.js";
 import {
   defaultCriteria,
   personalScore,
@@ -10,6 +12,7 @@ import { evaluatePersonalAI } from "./personal-ai.js";
 export async function startResearchJob(repo, personal, input = {}) {
   if (!input || typeof input !== "object" || Array.isArray(input))
     throw new ResearchError("JOB_INPUT", "Dữ liệu job không hợp lệ.");
+  if (input.mission) return startMissionJob(repo, personal, input);
   const { kind = "research", query = "" } = input;
   if (
     !["research", "refresh"].includes(kind) ||
@@ -77,6 +80,13 @@ export async function stepResearchJob(
       budget: 2500 - job.api_units,
     });
   try {
+    if (task.type === "plan")
+      return await planStep(job, personal, youtube, {
+        key: config.openaiKey,
+        model: config.openaiModel,
+        fetcher,
+        signal,
+      });
     if (task.type !== "evaluate" && job.api_units >= 2500)
       throw new ResearchError(
         "JOB_QUOTA",
@@ -248,9 +258,63 @@ export async function stepResearchJob(
         };
       v.analysis = {
         ...personalScore(v, base, criteria.content, memories),
+        market_score: marketScore(base, v),
         criteria_version: criteria.id,
         statistics_as_of: v.collected_at,
       };
+    }
+    if (job.settings.mission) {
+      const mission = job.settings.mission,
+        plan = job.settings.search_plan;
+      let evaluated;
+      if (config.openaiKey) {
+        if (candidates.length) await personal.reserveAI(job.id, "evaluate");
+        evaluated = await evaluateSearch(
+          shortlist(candidates, mission, plan),
+          mission,
+          plan,
+          criteria,
+          memories,
+          { key: config.openaiKey, model: config.openaiModel, fetcher, signal },
+        );
+      } else if (mission.method !== "keywords") {
+        throw new ResearchError(
+          "AI_NOT_CONFIGURED",
+          "Tìm kiếm thông minh đang tạm thời không hoạt động: AI chưa cấu hình.",
+          503,
+        );
+      } else
+        evaluated = candidates
+          .slice()
+          .sort((a, b) => b.analysis.score - a.analysis.score)
+          .slice(0, 20)
+          .map((v) => ({
+            ...v,
+            analysis: {
+              ...v.analysis,
+              personal_fit: v.analysis.score,
+              search_context: { mission, plan, criteria_version: criteria.id },
+              evaluation_warnings: [
+                "Tìm từ khóa và xếp hạng theo quy tắc; AI chưa cấu hình.",
+              ],
+            },
+          }));
+      evaluated.sort((a, b) => b.analysis.score - a.analysis.score);
+      return personal.commit(job, {
+        items: evaluated.map((v, i) => ({
+          ...v,
+          analysis: {
+            ...v.analysis,
+            selected_for_mission: i < job.settings.result_limit,
+            evaluation_warnings: [
+              ...(v.analysis.evaluation_warnings || []),
+              "Sàng lọc tối đa 2.000 hồ sơ gần nhất; AI đánh giá tối đa 20 video/lượt.",
+            ],
+          },
+          proposed: i < job.settings.result_limit,
+          cache_evaluation: true,
+        })),
+      });
     }
     candidates.sort((a, b) => b.analysis.score - a.analysis.score);
     const warnings = await evaluatePersonalAI(

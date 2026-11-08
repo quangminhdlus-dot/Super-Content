@@ -1,4 +1,12 @@
 const DAY = 86400000;
+export function marketScore(base, video = {}) {
+  const raw =
+    Math.min(40, (base.view_ratio || 0) * 10) +
+    Math.min(25, (base.growth_ratio || 0) * 8) +
+    Math.min(10, ((video.likes || 0) / Math.max(video.views || 0, 1)) * 200) +
+    Math.min(5, ((video.comments || 0) / Math.max(video.views || 0, 1)) * 500);
+  return Math.round((raw / 80) * 100);
+}
 const median = (values) => {
   const a = [...values].sort((x, y) => x - y);
   return a.length

@@ -1,4 +1,5 @@
 import { ResearchError } from "./validation.js";
+import { isDeepStrictEqual } from "node:util";
 const check = ({ data, error }) => {
   if (error)
     throw new ResearchError(
@@ -12,6 +13,15 @@ const single = (value) => (Array.isArray(value) ? value[0] : value);
 export function personalRepository(admin, userId) {
   const query = (table) => admin.from(table).select("*").eq("user_id", userId);
   return {
+    async ensureSearchReady() {
+      const { data, error } = await admin.rpc("content_search_capabilities");
+      if (error || data !== 4)
+        throw new ResearchError(
+          "SEARCH_SCHEMA",
+          "Tìm kiếm AI chưa sẵn sàng: cần phê duyệt và cài migration 004.",
+          503,
+        );
+    },
     async channels() {
       return check(
         await query("content_research_channels")
@@ -79,7 +89,32 @@ export function personalRepository(admin, userId) {
           "Đang quét, chưa hết 60 giây chờ hoặc đã đạt 10 lần/24 giờ.",
           429,
         );
-      return single(check(result));
+      const job = single(check(result));
+      if (
+        settings.mission &&
+        (!isDeepStrictEqual(job.settings?.mission, settings.mission) ||
+          job.settings.kind !== settings.kind)
+      )
+        throw new ResearchError(
+          "JOB_ACTIVE",
+          "Đang có tiến trình khác. Hoàn tất, tiếp tục hoặc hủy tiến trình đó trước khi đổi nhiệm vụ.",
+          409,
+        );
+      return job;
+    },
+    async reserveAI(id, phase) {
+      const result = await admin.rpc("reserve_content_search_ai", {
+        p_user_id: userId,
+        p_job_id: id,
+        p_phase: phase,
+      });
+      if (result.error)
+        throw new ResearchError(
+          "AI_BUDGET",
+          "AI đã đạt giới hạn thử lại/24 giờ hoặc chưa cài migration 004.",
+          429,
+        );
+      return result.data;
     },
     async claim(id) {
       const { data, error } = await admin.rpc("claim_content_research_step", {

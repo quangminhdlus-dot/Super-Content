@@ -60,6 +60,8 @@ Sau khi có URL HTTPS: mở bằng Safari trên iPhone → Chia sẻ → **Thêm
 
 ## Nghiên cứu AI cá nhân hóa
 
+**Nâng cấp tìm video bằng mô tả nhu cầu, từ khóa hoặc video mẫu:** xem [hướng dẫn AI Search 004](docs/ai-search.md). Phương pháp và nguồn độc lập, có nhiệm vụ lưu lại, chiến lược có thể sửa và điểm nhu cầu/tiêu chuẩn/thị trường riêng. Cần review migration 004 và cập nhật backend trước khi dùng tính năng mới với dịch vụ thật; không có migration tự chạy.
+
 Nâng cấp nền tảng hiện có với quản lý 500 kênh (nhập 100+ cùng lúc), job có checkpoint phía máy chủ, tiêu chuẩn có phiên bản, phản hồi lựa chọn và ghi nhớ cần xác nhận. Năm công đoạn và kịch bản hiện có được giữ nguyên.
 
 **Bắt đầu tại [hướng dẫn cá nhân hóa 003](docs/personal-research.md)**: migration mới cần phê duyệt, nhập kênh, tiêu chuẩn, bộ nhớ và cấu hình dịch vụ. Không sửa migration 001/002 đã phát hành. Không chạy SQL thật tự động.
