@@ -1,0 +1,25 @@
+{
+  "name": "super-content",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && node scripts/build-sw.js",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "playwright test",
+    "test:sync": "playwright test --config playwright.cloud.config.js",
+    "format": "prettier --write src scripts tests *.js index.html"
+  },
+  "dependencies": {
+    "@fontsource/be-vietnam-pro": "^5.2.0",
+    "@supabase/supabase-js": "^2.99.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@playwright/test": "^1.58.0",
+    "prettier": "^3.9.10",
+    "vite": "^7.3.0"
+  }
+}
