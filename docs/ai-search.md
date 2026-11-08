@@ -51,3 +51,5 @@ Phần người dùng cần thao tác khi chưa có quyền kết nối: review/
 `npm run test:e2e`: luồng sản xuất cũ, lưu/mở nhiệm vụ và giữ tiêu chuẩn trên desktop/iPhone viewport; kiểm tra cuộn 30–100 đề xuất ở nhiều độ phân giải. `npm run test:sync`: auth/API giả lập, xem/sửa kế hoạch, lưu/chạy lại nhiệm vụ, A/B/C, history, lượt rỗng không lấy nhầm video cũ và lỗi AI rõ ràng.
 
 Các kiểm thử có API nhà cung cấp đều dùng fixture, không chứng minh YouTube/OpenAI/Supabase thật hoạt động. Chưa chạy 004 trên production, chưa gọi AI/YouTube trả phí, chưa xác minh Render hoặc Safari/iPhone thật. Môi trường Cloud chưa có secret và đang chặn miền Pages/Render. Có thể xác nhận xuất bản frontend qua GitHub Actions; tính năng nghiên cứu AI production còn phụ thuộc các bước cấu hình trên.
+
+Bài thử quy mô chạy xuyên suốt 100 bộ thu thập kênh với mô tả không cần từ khóa: 200 request YouTube giả lập, 2 request AI giả lập, lưu 100 video chống trùng, AI đánh giá 20 và chọn 10 theo yêu cầu; không gọi `search.list` khi chọn nguồn chỉ kênh theo dõi. Đây là phép thử của worker và hạn mức, không phải đo hiệu năng hoặc quét 100 kênh thật.

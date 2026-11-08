@@ -246,6 +246,148 @@ test("100 followed channels get bounded refresh tasks; fresh channels reuse cach
   await startMissionJob(repo, personal, { kind: "plan", mission });
   assert.deepEqual(captured.tasks, [{ type: "plan" }]);
 });
+test("description-only research executes all 100 channel collectors and AI ranking with a bounded quota (mock providers)", async () => {
+  const channels = Array.from({ length: 100 }, (_, i) => ({
+    id: `row${i}`,
+    enabled: true,
+    url: `https://youtube.com/@fixture${i}`,
+    youtube_channel_id: `UC${String(i).padStart(22, "0")}`,
+    uploads: `UU${i}`,
+    title: `Fixture ${i}`,
+    last_video_at: null,
+  }));
+  let job,
+    ai = 0,
+    youtube = 0;
+  const cache = new Map();
+  const personal = {
+    channels: async () => channels,
+    channel: async (id) => channels.find((c) => c.id === id),
+    channelVideoIds: async () => [],
+    profile: async () => null,
+    memories: async () => [],
+    reserveAI: async () => {},
+    cache: async () => [...cache.values()],
+    start: async (settings, tasks) =>
+      (job = {
+        id: "job",
+        settings,
+        tasks,
+        status: "pending",
+        cursor: 0,
+        api_units: 0,
+        criteria_version: null,
+      }),
+    claim: async () => structuredClone(job),
+    commit: async (_j, r = {}) => {
+      if (r.task?.search_plan) {
+        job.settings.search_plan = r.task.search_plan;
+        job.settings.keywords = r.task.search_plan.groups
+          .filter((g) => g.enabled)
+          .map((g) => g.query);
+        job.tasks = [job.tasks[0], ...r.task.remaining_tasks];
+      }
+      for (const v of r.items || [])
+        cache.set(v.youtube_id, {
+          data: v,
+          sources: v.sources,
+          collected_at: new Date().toISOString(),
+        });
+      job.api_units += r.units || 0;
+      job.cursor++;
+      job.status = job.cursor === job.tasks.length ? "completed" : "pending";
+      return structuredClone(job);
+    },
+  };
+  const repo = {
+    settings: async () => ({
+      channels: [],
+      keywords: [],
+      mode: "channels",
+      published_after: "2026-10-01",
+      published_before: "2026-11-08",
+      result_limit: 10,
+    }),
+    history: async () => [],
+  };
+  const fetcher = async (input, req) => {
+    const u = new URL(input);
+    if (u.hostname === "api.openai.com") {
+      ai++;
+      const body = JSON.parse(req.body),
+        payload = JSON.parse(body.input);
+      return response(
+        body.text.format.name === "search_plan"
+          ? plan
+          : {
+              videos: payload.videos.map((v) => ({
+                youtube_id: v.youtube_id,
+                need_fit: 0.8,
+                relevance: 0.7,
+                novelty: 0.5,
+                potential: 0.5,
+                explanation: "Phù hợp nhu cầu trên metadata",
+                angle: "Kiểm chứng câu chuyện",
+                missing: ["Transcript"],
+              })),
+            },
+      );
+    }
+    youtube++;
+    if (u.pathname.endsWith("playlistItems")) {
+      const i = Number(u.searchParams.get("playlistId").slice(2));
+      return Response.json({
+        items: [
+          { contentDetails: { videoId: `vid${String(i).padStart(8, "0")}` } },
+        ],
+      });
+    }
+    assert.ok(
+      u.pathname.endsWith("videos"),
+      "Channel-only research must never call search.list",
+    );
+    const id = u.searchParams.get("id"),
+      i = Number(id.slice(3));
+    return Response.json({
+      items: [
+        {
+          id,
+          snippet: {
+            title: `Life purpose ${i}`,
+            description: "Meaning and motivation",
+            channelId: channels[i].youtube_channel_id,
+            channelTitle: channels[i].title,
+            categoryId: "27",
+            publishedAt: "2026-11-01T00:00:00Z",
+          },
+          statistics: { viewCount: "1000" },
+          contentDetails: { duration: "PT10M" },
+        },
+      ],
+    });
+  };
+  await startMissionJob(repo, personal, {
+    mission: { ...mission, source: "channels" },
+  });
+  for (let i = 0; job.status !== "completed" && i < 105; i++)
+    await stepResearchJob(
+      repo,
+      personal,
+      job.id,
+      { youtubeKey: "test", openaiKey: "test" },
+      { fetcher },
+    );
+  assert.equal(job.status, "completed");
+  assert.equal(cache.size, 100);
+  assert.equal(youtube, 200);
+  assert.equal(ai, 2);
+  assert.equal(job.api_units, 200);
+  const evaluated = [...cache.values()].filter(
+    (r) => r.data.analysis?.ranking_engine === "ai_search",
+  );
+  assert.equal(evaluated.length, 20);
+  assert.equal(evaluated.filter((r) => r.data.proposed).length, 10);
+});
 test("reference planning reads actual metadata, excludes unavailable examples and stops before collection when AI is absent", async () => {
   let ids, input;
   const m = {
