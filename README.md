@@ -58,22 +58,18 @@ Sau khi có URL HTTPS: mở bằng Safari trên iPhone → Chia sẻ → **Thêm
 
 Đã kiểm tra Chromium desktop/viewport cảm ứng 390×844. Chưa kiểm thử trên iPhone/Safari thật. Chưa xác nhận triển khai Pages hoặc đồng bộ với Supabase thật.
 
-## Nghiên cứu YouTube
+## Nghiên cứu AI cá nhân hóa
 
-Bổ sung khu vực Nghiên cứu YouTube, cấu hình nguồn, Quét ngay qua máy chủ, thống kê theo thời gian, điểm cơ hội và danh sách đề xuất cần duyệt. Năm công đoạn hiện tại giữ nguyên.
+Nâng cấp nền tảng hiện có với quản lý 500 kênh (nhập 100+ cùng lúc), job có checkpoint phía máy chủ, tiêu chuẩn có phiên bản, phản hồi lựa chọn và ghi nhớ cần xác nhận. Năm công đoạn và kịch bản hiện có được giữ nguyên.
 
-Hướng dẫn từng bước: [Supabase, YouTube API, máy chủ và cách kiểm thử](docs/youtube-research.md). Khóa YouTube/OpenAI chỉ đặt ở backend. Migration `002_youtube_research.sql` cần bạn phê duyệt trước khi chạy; ứng dụng không tự thay đổi DB thật.
+**Bắt đầu tại [hướng dẫn cá nhân hóa 003](docs/personal-research.md)**: migration mới cần phê duyệt, nhập kênh, tiêu chuẩn, bộ nhớ và cấu hình dịch vụ. Không sửa migration 001/002 đã phát hành. Không chạy SQL thật tự động.
 
 ```sh
-npm run research:server # cần secrets máy chủ theo server/.env.example
-npm run test:sync       # kiểm thử đồng bộ/nghiên cứu qua API giả lập
+npm run research:server # secrets ở server/.env.example, không đưa vào VITE_*
+npm test               # nghiệp vụ + PostgreSQL cục bộ + AI/YouTube giả lập
+npm run build
+npm run test:e2e        # desktop và kích thước điện thoại
+npm run test:sync       # API dịch vụ giả lập
 ```
 
-Chưa bật lịch tự động, thông báo đề xuất hay MCP. Chưa cấu hình Supabase/YouTube/OpenAI thật trong môi trường này.
-
-## Kết quả xác thực trong môi trường phát triển
-
-- `npm test`: 11 kiểm thử đạt, gồm nghiệp vụ, nghiên cứu YouTube/AI giả lập, API xác thực, RLS PostgreSQL, giới hạn quét và duyệt chống trùng.
-- `npm run test:e2e`: 8 kiểm thử đạt ở desktop và mobile viewport, gồm quy trình 20 tiêu đề/7 video, kịch bản, ngoại tuyến, lỗi lưu trữ và cấu hình/duyệt đề xuất nghiên cứu.
-- `npm run test:sync`: 2 kiểm thử đạt với **API Supabase và máy chủ nghiên cứu giả lập**, gồm đồng bộ hai phiên, xung đột, Quét ngay, lỗi quota và chuyển đề xuất vào kho. Không phải kiểm thử dịch vụ thật.
-- Build production đã được chạy thành công. Để xuất bản, chọn Pages Source là GitHub Actions rồi kiểm tra job `deploy`. Chỉ xác nhận URL ứng dụng hoạt động sau khi job triển khai thành công.
+Chưa bật lịch tự động, thông báo, MCP hoặc phân tích hiệu suất sau xuất bản. AI/YouTube cần khóa trên backend; Pages chỉ xuất bản frontend. Không có dịch vụ Supabase/YouTube/OpenAI thật nào được cấu hình hoặc chạy migration từ phiên phát triển này.

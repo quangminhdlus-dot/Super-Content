@@ -42,10 +42,10 @@ export function parseChannel(value) {
 export function validateSettings(raw, now = new Date()) {
   if (!raw || !Array.isArray(raw.channels) || !Array.isArray(raw.keywords))
     throw new ResearchError("SETTINGS", "Cấu hình nghiên cứu không hợp lệ.");
-  if (raw.channels.length > 10 || raw.keywords.length > 5)
+  if (raw.channels.length > 500 || raw.keywords.length > 5)
     throw new ResearchError(
       "LIMIT",
-      "Tối đa 10 kênh và 5 từ khóa mỗi lần quét.",
+      "Tối đa 500 kênh và 5 từ khóa; kênh được cập nhật theo lô.",
     );
   const channels = [
     ...new Map(

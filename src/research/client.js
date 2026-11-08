@@ -89,30 +89,48 @@ export async function saveSettings(user, settings) {
       ),
   );
 }
-export async function scanNow() {
+async function jobRequest(path, body = {}) {
   if (!cloud || !api)
-    throw new Error(
-      "Cần đăng nhập Supabase và cấu hình địa chỉ máy chủ nghiên cứu.",
-    );
+    throw new Error("Cần đăng nhập Supabase và cấu hình máy chủ nghiên cứu.");
   const { data, error } = await cloud.auth.getSession();
   if (error || !data.session) throw new Error("Vui lòng đăng nhập lại.");
   let response;
   try {
-    response = await fetch(`${api}/api/research/scan`, {
+    response = await fetch(`${api}${path}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${data.session.access_token}` },
+      headers: {
+        Authorization: `Bearer ${data.session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(100000),
     });
   } catch {
     throw new Error(
-      "Chưa nhận được kết quả từ máy chủ. Lần quét có thể vẫn đang chạy; tải lại trạng thái trước khi thử lại.",
+      "Kết nối bị gián đoạn. Tiến độ ở máy chủ được giữ; tải lại và tiếp tục sau khi lease hết hạn.",
     );
   }
   const result = await response
     .json()
-    .catch(() => ({ error: "Máy chủ trả về dữ liệu không hợp lệ." }));
-  if (!response.ok) throw new Error(result.error || "Quét chưa thành công.");
+    .catch(() => ({ error: "Phản hồi máy chủ không hợp lệ." }));
+  if (!response.ok) throw new Error(result.error || "Chưa xử lý được lô.");
   return result;
+}
+export async function scanNow({
+  kind = "research",
+  query = "",
+  resumeId = null,
+  onProgress = () => {},
+  shouldContinue = () => true,
+} = {}) {
+  let job = resumeId
+    ? { id: resumeId, status: "pending" }
+    : await jobRequest("/api/research/jobs", { kind, query });
+  while (!["completed", "cancelled"].includes(job.status) && shouldContinue()) {
+    job = await jobRequest(`/api/research/jobs/${job.id}/step`);
+    onProgress(job);
+  }
+  return job;
 }
 export async function setProposalStatus(user, ids, status) {
   if (cloud && user) {

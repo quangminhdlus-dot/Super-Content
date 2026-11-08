@@ -74,11 +74,22 @@ test("research settings persist; proposals remain separate and selected imports 
   await expect(
     page.getByRole("button", { name: "Quét ngay", exact: true }),
   ).toBeDisabled();
-  await page.locator("#channel-url").fill("https://evil.test/@channel");
-  await page.getByRole("button", { name: "+ Thêm kênh", exact: true }).click();
-  await expect(page.locator("#research-status")).toContainText("YouTube");
-  await page.locator("#channel-url").fill("https://www.youtube.com/@example");
-  await page.getByRole("button", { name: "+ Thêm kênh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Kênh theo dõi", exact: true })
+    .click();
+  await page.locator("#bulk-channels").fill("https://evil.test/@channel");
+  await page
+    .getByRole("button", { name: "Nhập danh sách kênh", exact: true })
+    .click();
+  await expect(page.locator("#personal-status")).toContainText("1 dòng lỗi");
+  await page.locator("#bulk-channels").fill("https://www.youtube.com/@example");
+  await page
+    .getByRole("button", { name: "Nhập danh sách kênh", exact: true })
+    .click();
+  await expect(page.locator(".channel-row")).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Nghiên cứu & Đề xuất", exact: true })
+    .click();
   await page.locator("#new-keyword").fill("Nội dung thực tế");
   await page
     .getByRole("button", { name: "+ Thêm từ khóa", exact: true })

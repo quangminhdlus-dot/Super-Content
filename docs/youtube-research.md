@@ -1,4 +1,6 @@
-# Nghiên cứu YouTube — cấu hình và vận hành
+# Nghiên cứu YouTube — cấu hình nền tảng 002
+
+> Các giới hạn 10 kênh/quét một request trong tài liệu này mô tả bản 002. Bản mới dùng [003 — nghiên cứu cá nhân hóa](personal-research.md), hỗ trợ 500 kênh, checkpoint và AI theo tiêu chuẩn. Giữ hướng dẫn này để cấu hình Supabase/YouTube ban đầu; dùng tài liệu 003 cho thao tác hiện hành.
 
 Phần nâng cấp dùng ứng dụng hiện tại. Năm công đoạn, IndexedDB cũ, bảng `content_videos` và hàm lưu kịch bản không bị thay thế. Không có migration tự chạy; không có thao tác với bảng, thông báo hoặc dữ liệu Super Day.
 

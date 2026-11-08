@@ -116,6 +116,16 @@ test("configured research UI calls the authenticated server, shows errors and im
         headers: { "access-control-allow-origin": "*" },
       });
     }
+    if (route.request().url().endsWith("/jobs"))
+      return route.fulfill({
+        json: {
+          id: "11111111-1111-1111-1111-111111111111",
+          status: "pending",
+          cursor: 0,
+          tasks: [{ type: "evaluate" }],
+        },
+        headers: { "access-control-allow-origin": "*" },
+      });
     proposals = [0, 1].map((i) => ({
       youtube_id: `video00000${i}`,
       status: "suggested",
@@ -148,7 +158,13 @@ test("configured research UI calls the authenticated server, shows errors and im
       },
     ];
     return route.fulfill({
-      json: { found: 2, proposed: 2 },
+      json: {
+        id: "11111111-1111-1111-1111-111111111111",
+        status: "completed",
+        cursor: 1,
+        tasks: [{ type: "evaluate" }],
+        api_units: 3,
+      },
       headers: { "access-control-allow-origin": "*" },
     });
   });
@@ -162,7 +178,7 @@ test("configured research UI calls the authenticated server, shows errors and im
   await page.getByRole("button", { name: "Quét ngay", exact: true }).click();
   await expect(page.locator(".proposal-card")).toHaveCount(2);
   await expect(page.locator(".run-panel")).toContainText("Hoàn tất");
-  expect(calls).toBe(1);
+  expect(calls).toBe(2);
   await page.locator("#research-select-all").check();
   await page
     .getByRole("button", { name: "Chuyển vào Kho ý tưởng", exact: true })

@@ -2,11 +2,13 @@ import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { repository } from "./repository.js";
-import { runScan } from "./scan.js";
+import { personalRepository } from "./personal-repository.js";
+import { startResearchJob, stepResearchJob } from "./jobs.js";
 import { ResearchError } from "./validation.js";
 export function createResearchServer({
   authenticate,
   scan,
+  jobs,
   allowedOrigins = [],
 }) {
   const attempts = new Map();
@@ -39,7 +41,14 @@ export function createResearchServer({
     }
     if (req.url === "/health" && req.method === "GET")
       return reply(200, { service: "Super Content Research", status: "ok" });
-    if (req.url !== "/api/research/scan" || req.method !== "POST")
+    const step = req.url?.match(
+      /^\/api\/research\/jobs\/([0-9a-f-]{36})\/step$/,
+    );
+    if (
+      (!["/api/research/scan", "/api/research/jobs"].includes(req.url) &&
+        !step) ||
+      req.method !== "POST"
+    )
       return reply(404, { error: "Không tìm thấy API." });
     const ip = req.socket.remoteAddress,
       now = Date.now();
@@ -48,13 +57,13 @@ export function createResearchServer({
     limit.count++;
     attempts.set(ip, limit);
     if (attempts.size > 10000) attempts.delete(attempts.keys().next().value);
-    if (limit.count > 80)
+    if (limit.count > 300)
       return reply(429, {
         code: "REQUEST_LIMIT",
         error: "Quá nhiều yêu cầu. Thử lại sau một phút.",
       });
     // No user-supplied query or arbitrary fetch URL. Settings come from the authenticated account.
-    req.resume();
+
     const token = req.headers.authorization?.match(
       /^Bearer (\S{1,8192})$/,
     )?.[1];
@@ -63,7 +72,24 @@ export function createResearchServer({
       const user = await authenticate(token);
       if (!user?.id)
         throw new ResearchError("AUTH", "Phiên đăng nhập không hợp lệ.", 401);
-      reply(200, await scan(user));
+      if (jobs) {
+        let body = "";
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 2048)
+            throw new ResearchError("BODY_LIMIT", "Yêu cầu quá lớn.", 413);
+        }
+        let input;
+        try {
+          input = body ? JSON.parse(body) : {};
+        } catch {
+          throw new ResearchError("BODY_JSON", "Dữ liệu yêu cầu không hợp lệ.");
+        }
+        reply(
+          200,
+          step ? await jobs.step(user, step[1]) : await jobs.start(user, input),
+        );
+      } else reply(200, await scan(user));
     } catch (error) {
       const safe =
         error instanceof ResearchError
@@ -124,12 +150,25 @@ if (
           throw new ResearchError("AUTH", "Phiên hết hạn. Đăng nhập lại.", 401);
         return data.user;
       },
-      scan: (user) =>
-        runScan(repository(admin, user.id), {
-          youtubeKey: YOUTUBE_API_KEY,
-          openaiKey: OPENAI_API_KEY,
-          openaiModel: OPENAI_MODEL,
-        }),
+      jobs: {
+        start: (user, input) =>
+          startResearchJob(
+            repository(admin, user.id),
+            personalRepository(admin, user.id),
+            input,
+          ),
+        step: (user, id) =>
+          stepResearchJob(
+            repository(admin, user.id),
+            personalRepository(admin, user.id),
+            id,
+            {
+              youtubeKey: YOUTUBE_API_KEY,
+              openaiKey: OPENAI_API_KEY,
+              openaiModel: OPENAI_MODEL,
+            },
+          ),
+      },
     });
     server.requestTimeout = 100000;
     server.headersTimeout = 10000;

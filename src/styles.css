@@ -1249,3 +1249,144 @@ select:focus {
     font-size: 1.1rem;
   }
 }
+.research-tabs {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.research-tabs button {
+  font-size: 0.76rem;
+  flex: 1;
+}
+.research-tabs button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #ff7a1a12;
+}
+.personal-panel {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.personal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.personal-panel > .muted {
+  margin-top: 15px;
+}
+.channel-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.channel-filters .field {
+  flex: 1;
+  min-width: 180px;
+}
+.channel-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding: 18px 0;
+}
+.channel-row > div {
+  flex: 1;
+  min-width: 200px;
+  overflow-wrap: anywhere;
+}
+.channel-row small,
+.channel-row a {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}
+.channel-row a {
+  color: var(--muted);
+}
+.channel-row .field {
+  max-width: 180px;
+}
+.channel-enable {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+}
+.weight-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.history-item,
+.memory-item {
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.history-item p {
+  white-space: pre-wrap;
+}
+.memory-item .research-buttons {
+  margin-top: 14px;
+}
+.memory-item input[type="checkbox"] {
+  vertical-align: middle;
+}
+.feedback-form {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.feedback-form small {
+  display: block;
+  margin: 10px 0;
+}
+.feedback-form textarea,
+.feedback-form select {
+  width: 100%;
+}
+#personal-status {
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+.personal-panel pre {
+  white-space: pre-wrap;
+}
+@media (max-width: 800px) {
+  .research-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .research-tabs button {
+    font-size: 0.68rem;
+    padding: 10px 6px;
+  }
+  .personal-panel {
+    padding: 16px;
+  }
+  .weight-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .channel-row > div {
+    min-width: 100%;
+    order: -1;
+  }
+  .channel-row .field {
+    max-width: none;
+    flex: 1;
+  }
+  .channel-row button {
+    font-size: 0.74rem;
+  }
+  .personal-heading h2 {
+    font-size: 1.1rem;
+  }
+}
