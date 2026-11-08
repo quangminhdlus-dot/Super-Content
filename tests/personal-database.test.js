@@ -47,6 +47,31 @@ test("003 migration preserves production data; criteria versions, decisions, mem
     ).rows[0].n,
     100,
   );
+  const more = importChannels(
+    Array.from({ length: 400 }, (_, i) => `https://youtube.com/@more${i}`).join(
+      "\n",
+    ),
+  ).added;
+  await db.query("select public.save_content_channels($1::jsonb)", [
+    JSON.stringify(more),
+  ]);
+  assert.equal(
+    (
+      await db.query(
+        "select count(*)::int n from public.content_research_channels",
+      )
+    ).rows[0].n,
+    500,
+  );
+  await assert.rejects(
+    () =>
+      db.query("select public.save_content_channels($1::jsonb)", [
+        JSON.stringify([
+          { canonical_url: "https://www.youtube.com/@overflow" },
+        ]),
+      ]),
+    /CHANNEL_LIMIT/,
+  );
   const criteria = defaultCriteria();
   criteria.topics = "Khoa học";
   const one = (

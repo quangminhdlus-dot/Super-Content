@@ -7,20 +7,22 @@ export function durationSeconds(iso = "") {
     : null;
 }
 export class YouTube {
-  constructor(key, { fetcher = fetch, signal } = {}) {
+  constructor(key, { fetcher = fetch, signal, budget = 650 } = {}) {
     this.key = key;
     this.fetcher = fetcher;
     this.signal = signal;
     this.units = 0;
+    this.budget = Math.min(650, Math.max(0, budget));
   }
   async get(resource, params) {
-    this.units += resource === "search" ? 100 : 1;
-    if (this.units > 650)
+    const cost = resource === "search" ? 100 : 1;
+    if (this.units + cost > this.budget)
       throw new ResearchError(
         "QUOTA_BUDGET",
         "Đã chạm ngân sách API mỗi lần quét.",
         429,
       );
+    this.units += cost;
     const url = new URL(resource, ROOT);
     Object.entries({ ...params, key: this.key }).forEach(([k, v]) =>
       url.searchParams.set(k, v),

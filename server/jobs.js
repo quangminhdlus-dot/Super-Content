@@ -1,17 +1,16 @@
 import { ResearchError, validateSettings, parseChannel } from "./validation.js";
 import { YouTube } from "./youtube.js";
-import { scoreVideo, velocity } from "./scoring.js";
+import { scoreVideo, scoringContext } from "./scoring.js";
 import {
   defaultCriteria,
   personalScore,
-  tokens,
+  normalizeText,
 } from "../shared/personalization.js";
 import { evaluatePersonalAI } from "./personal-ai.js";
-export async function startResearchJob(
-  repo,
-  personal,
-  { kind = "research", query = "" } = {},
-) {
+export async function startResearchJob(repo, personal, input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new ResearchError("JOB_INPUT", "Dữ liệu job không hợp lệ.");
+  const { kind = "research", query = "" } = input;
   if (
     !["research", "refresh"].includes(kind) ||
     typeof query !== "string" ||
@@ -72,9 +71,13 @@ export async function stepResearchJob(
   const job = await personal.claim(id);
   if (["completed", "cancelled"].includes(job.status)) return job;
   const task = job.tasks[job.cursor],
-    youtube = new YouTube(config.youtubeKey, { fetcher, signal });
+    youtube = new YouTube(config.youtubeKey, {
+      fetcher,
+      signal,
+      budget: 2500 - job.api_units,
+    });
   try {
-    if (job.api_units >= 2500)
+    if (task.type !== "evaluate" && job.api_units >= 2500)
       throw new ResearchError(
         "JOB_QUOTA",
         "Tiến trình đã đạt 2.500 đơn vị API. Hủy và giảm số nguồn trước khi tạo lượt mới.",
@@ -117,11 +120,17 @@ export async function stepResearchJob(
         maxResults: 50,
         ...(task.page_token ? { pageToken: task.page_token } : {}),
       });
-      const items = await youtube.details(
-        (page.items || [])
-          .map((i) => i.contentDetails?.videoId)
-          .filter(Boolean),
-      );
+      const pageIds = (page.items || [])
+        .map((i) => i.contentDetails?.videoId)
+        .filter(Boolean);
+      // Watermarks bound discovery, but must not freeze statistics of older
+      // uploads. Refresh the retained sample on the first page of each run.
+      const cachedIds =
+        task.pages === 0
+          ? (await personal.channelVideoIds?.(resolved.id)) || []
+          : [];
+      const ids = [...new Set([...pageIds, ...cachedIds])].slice(0, 150);
+      const items = await youtube.details(ids);
       const latest =
         [task.latest, row.last_video_at, ...items.map((v) => v.published_at)]
           .filter(Boolean)
@@ -129,9 +138,11 @@ export async function stepResearchJob(
           .at(-1) || null;
       const reached =
         !!task.watermark &&
-        items.some(
-          (v) => Date.parse(v.published_at) <= Date.parse(task.watermark),
-        );
+        items
+          .filter((v) => pageIds.includes(v.youtube_id))
+          .some(
+            (v) => Date.parse(v.published_at) <= Date.parse(task.watermark),
+          );
       const next = {
         ...task,
         pages: task.pages + 1,
@@ -190,27 +201,28 @@ export async function stepResearchJob(
         sources: r.sources,
         collected_at: r.collected_at,
       })),
-      context = new Map(
-        pool.map((v) => [
-          v.youtube_id,
-          velocity(v, history, Date.parse(v.collected_at)),
-        ]),
-      ),
+      context = scoringContext(pool, history, now),
       followed = new Set(
         channels
           .filter((c) => c.enabled && !c.duplicate_of)
           .map((c) => c.youtube_channel_id),
       );
-    const queryTokens = tokens(job.settings.query),
+    const queryTokens =
+        normalizeText(job.settings.query).match(/[\p{L}\p{N}]+/gu) || [],
+      keywordSources = new Set(
+        job.settings.keywords.map((k) => `Từ khóa: ${k}`),
+      ),
       after = job.settings.published_after + "T00:00:00Z",
       before = job.settings.published_before + "T23:59:59.999Z";
     const candidates = pool.filter(
       (v) =>
         Date.parse(v.published_at) >= Date.parse(after) &&
         Date.parse(v.published_at) <= Date.parse(before) &&
-        (job.settings.mode !== "channels" || followed.has(v.channel_id)) &&
+        ((job.settings.mode !== "keywords" && followed.has(v.channel_id)) ||
+          (job.settings.mode !== "channels" &&
+            v.sources.some((s) => keywordSources.has(s)))) &&
         queryTokens.every((t) =>
-          tokens(`${v.title} ${v.description}`).includes(t),
+          normalizeText(`${v.title} ${v.description}`).includes(t),
         ),
     );
     for (const v of candidates) {

@@ -110,10 +110,25 @@ async function jobRequest(path, body = {}) {
       "Kết nối bị gián đoạn. Tiến độ ở máy chủ được giữ; tải lại và tiếp tục sau khi lease hết hạn.",
     );
   }
-  const result = await response
-    .json()
-    .catch(() => ({ error: "Phản hồi máy chủ không hợp lệ." }));
+  const result = await response.json().catch(() => null);
+  if (!result || typeof result !== "object" || Array.isArray(result))
+    throw new Error(
+      "Phản hồi máy chủ không hợp lệ. Tiến độ đã lưu vẫn được giữ.",
+    );
   if (!response.ok) throw new Error(result.error || "Chưa xử lý được lô.");
+  if (
+    !/^[0-9a-f-]{36}$/i.test(result.id || "") ||
+    !["pending", "running", "paused", "completed", "cancelled"].includes(
+      result.status,
+    ) ||
+    !Array.isArray(result.tasks) ||
+    !Number.isInteger(result.cursor) ||
+    result.cursor < 0 ||
+    result.cursor > result.tasks.length
+  )
+    throw new Error(
+      "Phản hồi tiến trình không hợp lệ. Tải lại để kiểm tra tiến độ đã lưu.",
+    );
   return result;
 }
 export async function scanNow({

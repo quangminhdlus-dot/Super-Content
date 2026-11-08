@@ -10,6 +10,7 @@ export function createResearchServer({
   scan,
   jobs,
   allowedOrigins = [],
+  version = process.env.RENDER_GIT_COMMIT || null,
 }) {
   const attempts = new Map();
   return createServer(async (req, res) => {
@@ -40,7 +41,11 @@ export function createResearchServer({
       return;
     }
     if (req.url === "/health" && req.method === "GET")
-      return reply(200, { service: "Super Content Research", status: "ok" });
+      return reply(200, {
+        service: "Super Content Research",
+        status: "ok",
+        version,
+      });
     const step = req.url?.match(
       /^\/api\/research\/jobs\/([0-9a-f-]{36})\/step$/,
     );
@@ -73,18 +78,28 @@ export function createResearchServer({
       if (!user?.id)
         throw new ResearchError("AUTH", "Phiên đăng nhập không hợp lệ.", 401);
       if (jobs) {
-        let body = "";
-        for await (const chunk of req) {
-          body += chunk;
-          if (body.length > 2048)
+        const chunks = [];
+        let bytes = 0;
+        for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+          bytes += chunk.length;
+          if (bytes > 2048) {
+            req.resume();
             throw new ResearchError("BODY_LIMIT", "Yêu cầu quá lớn.", 413);
+          }
+          chunks.push(chunk);
         }
+        const body = Buffer.concat(chunks).toString("utf8");
         let input;
         try {
           input = body ? JSON.parse(body) : {};
         } catch {
           throw new ResearchError("BODY_JSON", "Dữ liệu yêu cầu không hợp lệ.");
         }
+        if (!input || typeof input !== "object" || Array.isArray(input))
+          throw new ResearchError(
+            "JOB_INPUT",
+            "Dữ liệu job phải là một đối tượng JSON.",
+          );
         reply(
           200,
           step ? await jobs.step(user, step[1]) : await jobs.start(user, input),

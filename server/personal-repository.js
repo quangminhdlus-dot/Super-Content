@@ -24,6 +24,15 @@ export function personalRepository(admin, userId) {
         await query("content_research_channels").eq("id", id).maybeSingle(),
       );
     },
+    async channelVideoIds(channelId) {
+      return check(
+        await query("content_research_videos")
+          .eq("data->>channel_id", channelId)
+          .order("data->>published_at", { ascending: false })
+          .order("youtube_id")
+          .limit(150),
+      ).map((row) => row.youtube_id);
+    },
     async profile(id = undefined) {
       if (id === null) return null;
       if (id === undefined) {
@@ -57,15 +66,20 @@ export function personalRepository(admin, userId) {
       return rows;
     },
     async start(settings, tasks) {
-      return single(
-        check(
-          await admin.rpc("start_content_research_job", {
-            p_user_id: userId,
-            p_settings: settings,
-            p_tasks: tasks,
-          }),
-        ),
-      );
+      const result = await admin.rpc("start_content_research_job", {
+        p_user_id: userId,
+        p_settings: settings,
+        p_tasks: tasks,
+      });
+      if (
+        /SCAN_(RUNNING|COOLDOWN|DAILY_LIMIT)/.test(result.error?.message || "")
+      )
+        throw new ResearchError(
+          "SCAN_LIMIT",
+          "Đang quét, chưa hết 60 giây chờ hoặc đã đạt 10 lần/24 giờ.",
+          429,
+        );
+      return single(check(result));
     },
     async claim(id) {
       const { data, error } = await admin.rpc("claim_content_research_step", {

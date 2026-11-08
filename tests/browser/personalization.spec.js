@@ -2,6 +2,43 @@ import { test, expect } from "@playwright/test";
 async function tab(page, name) {
   await page.getByRole("button", { name, exact: true }).click();
 }
+test("500 channel rows remain searchable and the limit does not discard saved channels", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("./");
+  await page.locator(".research-shortcut").click();
+  await tab(page, "Kênh theo dõi");
+  await page
+    .locator("#bulk-channels")
+    .fill(
+      Array.from(
+        { length: 500 },
+        (_, i) => `https://youtube.com/@scale${i}`,
+      ).join("\n"),
+    );
+  await tab(page, "Nhập danh sách kênh");
+  await expect(page.locator(".channel-row")).toHaveCount(500);
+  await page.locator("#bulk-channels").fill("https://youtube.com/@overflow");
+  await tab(page, "Nhập danh sách kênh");
+  await expect(page.locator("#personal-status")).toContainText(
+    "Tối đa 500 kênh",
+  );
+  await expect(page.locator(".channel-row")).toHaveCount(500);
+  await page.locator("#channel-search").fill("scale499");
+  await expect(page.locator(".channel-row")).toHaveCount(1);
+  await page.reload();
+  await page.locator(".research-shortcut").click();
+  await tab(page, "Kênh theo dõi");
+  await expect(page.locator(".channel-row")).toHaveCount(500);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  expect(errors).toEqual([]);
+});
 test("100 channels, criteria history and confirmed memory can be managed on desktop and mobile", async ({
   page,
 }, info) => {

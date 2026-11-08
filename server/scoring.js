@@ -37,7 +37,11 @@ export function scoringContext(pool, snapshots, now) {
   return new Map(
     pool.map((video) => [
       video.youtube_id,
-      velocity(video, byId.get(video.youtube_id) || [], now),
+      velocity(
+        video,
+        byId.get(video.youtube_id) || [],
+        video.collected_at ? Date.parse(video.collected_at) : now,
+      ),
     ]),
   );
 }
@@ -54,6 +58,7 @@ export function scoreVideo(
   const peers = pool.filter(
     (p) =>
       p.youtube_id !== video.youtube_id &&
+      (!p.collected_at || now - Date.parse(p.collected_at) <= DAY) &&
       now - Date.parse(video.published_at) >= 3600000 &&
       now - Date.parse(p.published_at) >= 3600000 &&
       p.channel_id === video.channel_id &&

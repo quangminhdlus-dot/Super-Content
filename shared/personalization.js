@@ -56,7 +56,12 @@ export function channelKey(channel) {
   );
 }
 export function importChannels(text, existing = [], group = "") {
-  const seen = new Set(existing.map(channelKey)),
+  // A resolved handle must remain recognizable by both its URL and channel ID.
+  const keys = (channel) => [
+    channelKey(channel),
+    channelKey({ url: channel.url }),
+  ];
+  const seen = new Set(existing.flatMap(keys)),
     added = [],
     duplicates = [],
     invalid = [];
@@ -66,14 +71,14 @@ export function importChannels(text, existing = [], group = "") {
     .filter(Boolean)) {
     try {
       const p = parseChannel(line),
-        key = channelKey(p);
-      if (seen.has(key)) {
+        aliases = keys(p);
+      if (aliases.some((key) => seen.has(key))) {
         duplicates.push(line);
         continue;
       }
       if (existing.length + added.length >= 500)
         throw new Error("Tối đa 500 kênh.");
-      seen.add(key);
+      aliases.forEach((key) => seen.add(key));
       added.push({
         ...p,
         canonical_url: p.url,
@@ -95,16 +100,16 @@ const stop = new Set(
   ),
 );
 export function tokens(text) {
-  return [
-    ...new Set(
-      String(text || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/đ/g, "d")
-        .toLowerCase()
-        .match(/[a-z0-9]{3,}/g) || [],
-    ),
-  ].filter((x) => !stop.has(x));
+  return [...new Set(normalizeText(text).match(/[a-z0-9]{3,}/g) || [])].filter(
+    (x) => !stop.has(x),
+  );
+}
+export function normalizeText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
 }
 export function similarity(a, b) {
   const aa = tokens(a),

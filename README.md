@@ -1,6 +1,6 @@
 # Super Content
 
-Ứng dụng quản lý sản xuất nội dung YouTube: **Kho ý tưởng → Lên kịch bản → Chờ quay → Hoàn thiện → Đã xuất bản**. Giao diện tiếng Việt, tối/cam theo Super Day; phông Be Vietnam Pro được đóng gói để dùng ngoại tuyến. Không sử dụng AI, thông báo đẩy hay dữ liệu Super Day.
+Ứng dụng quản lý sản xuất nội dung YouTube: **Kho ý tưởng → Lên kịch bản → Chờ quay → Hoàn thiện → Đã xuất bản**. Giao diện tiếng Việt, tối/cam theo Super Day; phông Be Vietnam Pro được đóng gói để dùng ngoại tuyến. Nghiên cứu YouTube và AI cá nhân hóa là tùy chọn, cần backend riêng. Không sử dụng thông báo đẩy hay dữ liệu Super Day.
 
 ## Chạy trên máy phát triển
 
@@ -50,7 +50,7 @@ Mạng phát triển cần cho phép HTTPS đến project Supabase của bạn. 
 
 ## GitHub Pages & iPhone
 
-Workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) build bằng lockfile, chạy kiểm thử nghiệp vụ/DB và deploy Pages khi push `main` hoặc chạy thủ công. Trong GitHub **Settings → Pages → Source**, chọn **GitHub Actions**. Nếu dùng Supabase, đặt hai repository Actions variables cùng tên như trên trước khi build.
+Workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) build bằng lockfile, chạy kiểm thử nghiệp vụ/DB, E2E và đồng bộ trên pull request và trước khi deploy Pages từ `main`. Pull request không xuất bản website. Trong GitHub **Settings → Pages → Source**, chọn **GitHub Actions**. Nếu dùng Supabase, đặt hai repository Actions variables cùng tên như trên trước khi build.
 
 Toàn bộ tài nguyên, manifest, scope và service worker dùng đường dẫn tương đối; đã kiểm thử với `/super-content/`. Repo hiện tại có origin `quangminhdlus-dot/Super-Content`; URL và chữ hoa/thường cuối cùng phải lấy từ kết quả job `deploy`, không suy ra rằng URL dự kiến đã hoạt động.
 
@@ -73,3 +73,5 @@ npm run test:sync       # API dịch vụ giả lập
 ```
 
 Chưa bật lịch tự động, thông báo, MCP hoặc phân tích hiệu suất sau xuất bản. AI/YouTube cần khóa trên backend; Pages chỉ xuất bản frontend. Không có dịch vụ Supabase/YouTube/OpenAI thật nào được cấu hình hoặc chạy migration từ phiên phát triển này.
+
+Xem [phạm vi kiểm thử, các lỗi đã sửa và bước vận hành còn cần xác minh](docs/quality-audit.md). Backend trả revision Render (khi có `RENDER_GIT_COMMIT`) tại `GET /health`; trạng thái `ok` chỉ xác nhận tiến trình HTTP, chưa xác nhận các nhà cung cấp bên ngoài.

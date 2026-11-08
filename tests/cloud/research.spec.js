@@ -15,7 +15,8 @@ test("configured research UI calls the authenticated server, shows errors and im
     proposals = [],
     videos = [],
     calls = 0,
-    fail = false;
+    fail = false,
+    malformed = false;
   let settings = {
     user_id: user.id,
     channels: [{ url: "https://www.youtube.com/@example" }],
@@ -97,6 +98,12 @@ test("configured research UI calls the authenticated server, shows errors and im
     expect(route.request().headers().authorization).toBe(
       "Bearer test-user-token",
     );
+    if (malformed)
+      return route.fulfill({
+        status: 200,
+        json: {},
+        headers: { "access-control-allow-origin": "*" },
+      });
     if (fail) {
       runs = [
         {
@@ -195,4 +202,15 @@ test("configured research UI calls the authenticated server, shows errors and im
   await expect(page.locator("#research-status")).toContainText("hết hạn mức");
   await expect(page.locator(".run-panel")).toContainText("YOUTUBE_QUOTA");
   expect(videos).toHaveLength(2);
+  fail = false;
+  malformed = true;
+  const before = calls;
+  await page.getByRole("button", { name: "Quét ngay", exact: true }).click();
+  await expect(page.locator("#research-status")).toContainText(
+    "Phản hồi tiến trình không hợp lệ",
+  );
+  await expect(
+    page.getByRole("button", { name: "Quét ngay", exact: true }),
+  ).toBeEnabled();
+  expect(calls).toBe(before + 1);
 });
