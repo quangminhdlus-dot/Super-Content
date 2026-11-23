@@ -81,8 +81,8 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   }
   const a = await client("a@example.com");
   await a.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
-  await a.locator("[name=titles]").fill("Video chung");
-  await a.getByRole("button", { name: "Thêm vào kho ý tưởng" }).click();
+  await a.locator("#new-idea-title").fill("Video chung");
+  await a.getByRole("button", { name: "Lưu ý tưởng" }).click();
   await expect.poll(() => server.size).toBe(1);
   const b = await client("a@example.com", true);
   await expect(b.locator(".video-row")).toHaveCount(1);
