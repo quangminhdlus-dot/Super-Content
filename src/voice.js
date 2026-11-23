@@ -569,6 +569,8 @@ export function initVoice({
           b.textContent = "🎙";
         }
         if (toolbar) toolbar.append(b);
+        else if (target.id === "new-idea-content")
+          target.closest(".field")?.insertAdjacentElement("afterend", b);
         else target.insertAdjacentElement("afterend", b);
         if (inline) {
           const feedback = document.createElement("small");
