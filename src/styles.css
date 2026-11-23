@@ -7,9 +7,10 @@
   --muted: #bcccde;
   --dim: #9eafc5;
   --line: #2a3b52;
-  --accent: #65a7ff;
-  --accent-hover: #85baff;
-  --accent-ink: #09182c;
+  --accent: #0866ff;
+  --accent-readable: #81b9ff;
+  --accent-hover: #0759dd;
+  --accent-ink: #ffffff;
   font-family: "Be Vietnam Pro", sans-serif;
   font-size: 16px;
   line-height: 1.6;
@@ -70,7 +71,7 @@ a:focus-visible {
 input:focus,
 textarea:focus {
   outline: 1px solid var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-readable);
 }
 input,
 textarea {
@@ -89,7 +90,7 @@ textarea {
 }
 input[type="checkbox"] {
   appearance: auto;
-  accent-color: var(--accent);
+  accent-color: var(--accent-readable);
   width: 21px;
   height: 21px;
   cursor: pointer;
@@ -128,7 +129,7 @@ small {
   color: var(--dim);
 }
 .accent-highlight {
-  color: var(--accent);
+  color: var(--accent-readable);
 }
 .muted {
   color: var(--muted);
@@ -137,7 +138,7 @@ small {
 .primary {
   background: var(--accent);
   color: var(--accent-ink);
-  border-color: var(--accent);
+  border-color: var(--accent-readable);
   font-weight: 700;
 }
 .primary:hover {
@@ -216,12 +217,12 @@ small {
   font-weight: 400;
 }
 .nav-item.active {
-  background: #65a7ff14;
-  color: var(--accent);
+  background: #0866ff14;
+  color: var(--accent-readable);
 }
 .nav-item.active b {
-  background: #65a7ff22;
-  color: var(--accent);
+  background: #0866ff22;
+  color: var(--accent-readable);
 }
 .side-extra {
   border-top: 1px solid var(--line);
@@ -252,7 +253,7 @@ small {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-readable);
   flex-shrink: 0;
 }
 main {
@@ -298,7 +299,7 @@ main {
   background: none;
   border: 0;
   font-size: 0.72rem;
-  color: var(--accent);
+  color: var(--accent-readable);
 }
 .local-notice svg {
   width: 15px;
@@ -319,7 +320,7 @@ main {
 .eyebrow {
   font-size: 0.65rem;
   letter-spacing: 0.15em;
-  color: var(--accent);
+  color: var(--accent-readable);
   font-weight: 700;
   margin-bottom: 12px;
 }
@@ -379,7 +380,7 @@ main {
   padding: 11px 4px;
 }
 .search:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-readable);
 }
 .search input:focus {
   outline: none;
@@ -422,7 +423,7 @@ main {
   background: #1b2a3d88;
 }
 .video-row.selected {
-  background: #65a7ff09;
+  background: #0866ff09;
 }
 .video-main {
   flex: 1;
@@ -492,7 +493,7 @@ main {
   width: 72px;
   height: 72px;
   border-radius: 22px;
-  color: var(--accent);
+  color: var(--accent-readable);
   margin-bottom: 23px;
 }
 .empty-icon svg {
@@ -534,7 +535,7 @@ main {
   flex-wrap: wrap;
 }
 .selection-bar b {
-  color: var(--accent);
+  color: var(--accent-readable);
 }
 .selection-bar > button {
   background: none;
@@ -626,8 +627,8 @@ dialog::backdrop {
   flex-wrap: wrap;
 }
 .font-options [aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-readable);
+  color: var(--accent-readable);
 }
 .mobile-utilities {
   display: flex;
@@ -699,7 +700,7 @@ dialog::backdrop {
   padding: 25px;
   line-height: 1.9;
   resize: vertical;
-  caret-color: var(--accent);
+  caret-color: var(--accent-readable);
 }
 .details {
   padding: 23px;
@@ -1123,7 +1124,7 @@ select:focus {
   overflow-wrap: anywhere;
 }
 .proposal-card h3 a:hover {
-  color: var(--accent);
+  color: var(--accent-readable);
 }
 .proposal-card .muted {
   font-size: 0.68rem;
@@ -1270,9 +1271,9 @@ select:focus {
   flex: 1;
 }
 .research-tabs button.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: #65a7ff12;
+  border-color: var(--accent-readable);
+  color: var(--accent-readable);
+  background: #0866ff12;
 }
 /* Only the two-column research workspace owns viewport scrolling.
    Other research tabs and production pages retain their document flow. */
@@ -1366,7 +1367,7 @@ select:focus {
 .search-plan summary,
 .search-advanced summary {
   cursor: pointer;
-  color: var(--accent);
+  color: var(--accent-readable);
   margin-bottom: 12px;
 }
 .plan-group {
@@ -1390,7 +1391,7 @@ select:focus {
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 0;
-  color: var(--accent);
+  color: var(--accent-readable);
 }
 .mission-history {
   overflow-wrap: anywhere;
@@ -1482,7 +1483,7 @@ select:focus {
   width: 100%;
 }
 #personal-status {
-  color: var(--accent);
+  color: var(--accent-readable);
   font-size: 0.8rem;
 }
 .personal-panel pre {
@@ -1554,13 +1555,13 @@ select:focus {
   width: 124px;
   height: 124px;
   pointer-events: none;
-  border: 1px solid #65a7ff20;
+  border: 1px solid #0866ff20;
   transition: transform .13s ease-out, border-color .13s ease-out;
 }
 #voice-dialog .voice-ring-outer {
   width: 158px;
   height: 158px;
-  border-color: #65a7ff13;
+  border-color: #0866ff13;
 }
 #voice-dialog .voice-mic-core {
   display: grid;
@@ -1568,11 +1569,11 @@ select:focus {
   z-index: 2;
   width: 88px;
   height: 88px;
-  color: var(--accent);
+  color: var(--accent-readable);
   background: radial-gradient(circle at 50% 20%, #283e59, #162338 75%);
-  border: 1px solid #65a7ff55;
+  border: 1px solid #0866ff55;
   border-radius: 50%;
-  box-shadow: 0 0 32px #65a7ff14;
+  box-shadow: 0 0 32px #0866ff14;
   transition: transform .13s ease-out, box-shadow .13s ease-out;
 }
 #voice-dialog .voice-mic-core svg { width: 40px; height: 40px; }
@@ -1601,15 +1602,15 @@ select:focus {
 #voice-dialog .voice-bars i:nth-child(4) { height: 26px; }
 #voice-dialog[data-voice-phase="recording"] .voice-mic-core {
   transform: scale(var(--voice-scale));
-  box-shadow: 0 0 38px #65a7ff30;
+  box-shadow: 0 0 38px #0866ff30;
 }
 #voice-dialog[data-voice-phase="recording"] .voice-ring-outer {
   transform: scale(var(--voice-scale));
-  border-color: #65a7ff46;
+  border-color: #0866ff46;
 }
 #voice-dialog[data-voice-phase="recording"] .voice-ring-inner {
   transform: scale(var(--voice-scale));
-  border-color: #65a7ff4a;
+  border-color: #0866ff4a;
 }
 #voice-dialog[data-voice-phase="recording"] .voice-bars i { opacity: .85; }
 #voice-dialog .voice-timer {
@@ -1676,7 +1677,7 @@ select:focus {
   max-width: 100%;
 }
 #voice-dialog[data-voice-phase="review"] .voice-recording-screen { display: none; }
-#voice-dialog .voice-restart { color: var(--accent); }
+#voice-dialog .voice-restart { color: var(--accent-readable); }
 .voice-mic {
   display: inline-flex;
   align-self: flex-start;
@@ -1684,7 +1685,7 @@ select:focus {
   min-height: 36px;
   padding: 6px 10px;
   margin: 6px 0;
-  color: var(--accent);
+  color: var(--accent-readable);
   font-size: 13px;
 }
 .voice-versions { margin-top: 18px; }
@@ -1703,7 +1704,7 @@ select:focus {
 
 /* Voice-first ideas keep the description prominent, separate from the optional title. */
 .title-ai-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
-.title-ai-tools button { color:var(--accent); font-size:0.73rem; padding:7px 10px; }
+.title-ai-tools button { color: var(--accent-readable); font-size:0.73rem; padding:7px 10px; }
 .title-ai-tools small { color:var(--muted); font-size:0.67rem; }
 
 /* Single-step idea capture: title and body together. */
@@ -1747,7 +1748,7 @@ body {
 }
 .utility-dropdown summary::-webkit-details-marker { display: none; }
 .utility-dropdown summary:hover,
-.utility-dropdown[open] summary { background: var(--raised); color: var(--accent); }
+.utility-dropdown[open] summary { background: var(--raised); color: var(--accent-readable); }
 .utility-dropdown summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .utility-popover {
   position: absolute;
@@ -1810,9 +1811,9 @@ body {
     place-items: center;
     border-radius: 50%;
     background: var(--accent);
-    border: 2px solid #9bc6ff;
+    border: 2px solid #4d96ff;
     color: var(--accent-ink);
-    box-shadow: 0 8px 26px #0008, 0 0 0 5px #65a7ff1c;
+    box-shadow: 0 8px 26px #0008, 0 0 0 5px #0866ff1c;
     -webkit-tap-highlight-color: transparent;
   }
   .quick-record-button svg {
@@ -1820,7 +1821,7 @@ body {
     height: 31px;
     stroke-width: 1.9;
   }
-  .quick-record-button:hover { background: var(--accent-hover); border-color: #bad7ff; }
+  .quick-record-button:hover { background: var(--accent-hover); border-color: #81b9ff; }
   .quick-record-button:active { transform: scale(.95); }
 }
 
@@ -1854,9 +1855,9 @@ body {
   height: 68px;
   min-height: 68px;
   background: var(--accent);
-  border-color: #9bc6ff;
+  border-color: #4d96ff;
   color: var(--accent-ink);
-  box-shadow: 0 7px 25px #65a7ff2a;
+  box-shadow: 0 7px 25px #0866ff2a;
 }
 #voice-dialog .voice-send svg { width: 29px; height: 29px; }
 #voice-dialog[data-voice-phase="paused"] .voice-mic-core,
@@ -1981,7 +1982,7 @@ body {
 /* Compact conflict management preserves both versions and exposes a choice. */
 .conflict-section { scroll-margin-top: 12px; }
 .conflict-preview { margin: 12px 0; font-size: 0.77rem; }
-.conflict-preview summary { cursor: pointer; color: var(--accent); }
+.conflict-preview summary { cursor: pointer; color: var(--accent-readable); }
 .conflict-compare {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1997,7 +1998,7 @@ body {
 }
 
 /* Blue Slate: restrained, accessible interaction states. */
-:root { --accent-soft: #65a7ff16; --accent-border: #65a7ff55; }
+:root { --accent-soft: #0866ff16; --accent-border: #0866ff55; }
 button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .nav-item.active { border-radius: 10px; }
 .video-row:focus-within { background: var(--accent-soft); }
