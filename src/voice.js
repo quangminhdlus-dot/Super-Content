@@ -564,7 +564,10 @@ export function initVoice({
           : null;
         // Idea dictation belongs beside the writing area rather than at the
         // distant heading: on mobile it becomes a reachable floating control.
-        if (target.id === "idea-content") b.classList.add("idea-dictation-float");
+        if (target.id === "idea-content") {
+          b.classList.add("idea-dictation-float", "voice-icon-only");
+          b.textContent = "🎙";
+        }
         if (toolbar) toolbar.append(b);
         else target.insertAdjacentElement("afterend", b);
         if (inline) {
