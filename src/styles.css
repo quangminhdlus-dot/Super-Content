@@ -2366,7 +2366,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   animation: voice-saving-spin 1s linear infinite;
 }
 @keyframes voice-saving-spin { to { transform: rotate(360deg); } }
-#voice-dialog[data-voice-quick="true"][data-voice-phase="error"] .voice-heading [data-voice="cancel"] { display: none !important; }
+#voice-dialog[data-voice-phase="error"] .voice-heading [data-voice="cancel"] { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   #voice-dialog .voice-saving-spinner { animation-duration: 2.5s; }
 }
