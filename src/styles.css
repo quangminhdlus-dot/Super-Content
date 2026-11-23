@@ -1872,3 +1872,117 @@ body {
 @media (max-width: 600px) {
   #voice-dialog .voice-primary-controls { gap: 14px; }
 }
+
+
+/* iPhone 16 Pro Max and other mobile screens: keep chrome anchored, scroll only content.
+   The safe-area insets prevent overlap with the Dynamic Island and home indicator. */
+@media (max-width: 800px) {
+  html { height: 100%; }
+  body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+  #app { height: 100dvh; min-height: 0; overflow: hidden; }
+  #app > main {
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #app > main > .topbar {
+    position: relative;
+    z-index: 40;
+    flex: 0 0 auto;
+    min-height: calc(60px + env(safe-area-inset-top));
+    padding: calc(7px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+             7px max(14px, env(safe-area-inset-left));
+    gap: 2px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  #app > main > .topbar > .breadcrumb {
+    flex: 1 1 auto;
+    margin-right: auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.76rem;
+    line-height: 1.3;
+  }
+  #app > main > .topbar > .research-shortcut,
+  #app > main > .topbar > .icon-button,
+  #app > main > .topbar > .utility-dropdown summary {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 9px;
+  }
+  #app > main > .local-notice:not([hidden]) {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    margin: 7px max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    padding: 5px 8px;
+    min-height: 38px;
+    font-size: 0.65rem;
+    line-height: 1.4;
+  }
+  #app > main > .local-notice [data-status] {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  #app > main > .local-notice button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    margin: 0;
+    padding: 4px 8px;
+    white-space: nowrap;
+    font-size: 0.66rem;
+    font-weight: 600;
+  }
+  #app > main > #content {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding: 0 max(16px, env(safe-area-inset-right))
+             calc(130px + env(safe-area-inset-bottom))
+             max(16px, env(safe-area-inset-left));
+    scroll-padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
+  .mobile-nav { z-index: 65; }
+  .quick-record-button {
+    z-index: 60;
+    right: max(22px, env(safe-area-inset-right));
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .utility-dropdown .utility-popover {
+    right: -50px;
+    max-width: calc(100vw - 28px);
+  }
+}
+/* Compact conflict management preserves both versions and exposes a choice. */
+.conflict-section { scroll-margin-top: 12px; }
+.conflict-preview { margin: 12px 0; font-size: 0.77rem; }
+.conflict-preview summary { cursor: pointer; color: var(--accent); }
+.conflict-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 9px;
+}
+.conflict-compare > div { min-width: 0; padding: 10px; border-radius: 9px; background: var(--raised); }
+.conflict-compare p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.conflict-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.conflict-actions button { flex: 1 1 135px; min-width: 0; font-size: 0.77rem; }
+@media (max-width: 800px) {
+  .conflict-compare { grid-template-columns: minmax(0, 1fr); }
+}
