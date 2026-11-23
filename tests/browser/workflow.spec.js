@@ -76,8 +76,8 @@ test("iPhone 16 Pro Max: header and bottom nav stay still during list scrolling"
   await page.getByRole("button", { name: "Thêm vào kho ý tưởng" }).click();
   const header=page.locator(".topbar"), nav=page.locator(".mobile-nav");
   const top=await header.boundingBox(),bottom=await nav.boundingBox();
-  await page.locator("#content").evaluate(el=>{el.scrollTop=el.scrollHeight;});
-  await expect.poll(()=>page.locator("#content").evaluate(el=>el.scrollTop)).toBeGreaterThan(100);
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
   const nextTop=await header.boundingBox(),nextBottom=await nav.boundingBox();
   expect(Math.abs(top.y-nextTop.y)).toBeLessThan(2);
   expect(Math.abs(bottom.y-nextBottom.y)).toBeLessThan(2);

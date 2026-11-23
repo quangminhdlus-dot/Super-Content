@@ -1874,29 +1874,29 @@ body {
 }
 
 
-/* iPhone 16 Pro Max and other mobile screens: keep chrome anchored, scroll only content.
-   The safe-area insets prevent overlap with the Dynamic Island and home indicator. */
+/* iPhone: native document scrolling with pinned controls, no body scroll-lock. */
 @media (max-width: 800px) {
-  html { height: 100%; }
-  body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
-  #app { height: 100dvh; min-height: 0; overflow: hidden; }
+  html { min-height: 100%; }
+  body { height: auto; min-height: 100dvh; overflow: visible; overscroll-behavior-y: auto; }
+  #app { height: auto; min-height: 100dvh; overflow: visible; }
   #app > main {
-    height: 100dvh;
-    min-height: 0;
-    padding-bottom: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    height: auto;
+    min-height: 100dvh;
+    display: block;
+    padding-bottom: calc(170px + env(safe-area-inset-bottom));
+    overflow: visible;
   }
   #app > main > .topbar {
-    position: relative;
+    position: sticky;
+    top: 0;
     z-index: 40;
-    flex: 0 0 auto;
     min-height: calc(60px + env(safe-area-inset-top));
     padding: calc(7px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
              7px max(14px, env(safe-area-inset-left));
     gap: 2px;
-    background: var(--bg);
+    background: #0f1216f7;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--line);
   }
   #app > main > .topbar > .breadcrumb {
@@ -1920,7 +1920,9 @@ body {
   }
   #app > main > .local-notice:not([hidden]) {
     display: flex;
-    flex: 0 0 auto;
+    position: sticky;
+    z-index: 39;
+    top: calc(60px + env(safe-area-inset-top));
     flex-wrap: nowrap;
     align-items: center;
     gap: 6px;
@@ -1929,6 +1931,7 @@ body {
     min-height: 38px;
     font-size: 0.65rem;
     line-height: 1.4;
+    background: var(--surface);
   }
   #app > main > .local-notice [data-status] {
     flex: 1 1 auto;
@@ -1945,18 +1948,15 @@ body {
     font-weight: 600;
   }
   #app > main > #content {
-    flex: 1 1 auto;
-    min-height: 0;
     width: 100%;
+    height: auto;
+    min-height: 0;
     max-width: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    display: block;
+    overflow: visible;
     padding: 0 max(16px, env(safe-area-inset-right))
-             calc(130px + env(safe-area-inset-bottom))
-             max(16px, env(safe-area-inset-left));
-    scroll-padding-bottom: calc(110px + env(safe-area-inset-bottom));
+             20px max(16px, env(safe-area-inset-left));
+    scroll-margin-top: calc(70px + env(safe-area-inset-top));
   }
   .mobile-nav { z-index: 65; }
   .quick-record-button {
@@ -1969,6 +1969,7 @@ body {
     max-width: calc(100vw - 28px);
   }
 }
+
 /* Compact conflict management preserves both versions and exposes a choice. */
 .conflict-section { scroll-margin-top: 12px; }
 .conflict-preview { margin: 12px 0; font-size: 0.77rem; }

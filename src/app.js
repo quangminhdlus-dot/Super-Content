@@ -656,6 +656,29 @@ async function sync() {
   try {
     await writeChain;
     await reload();
+    // Revisit conflicts left by older versions; auto-clear only provably safe cases.
+    if (records.some((r) => r.conflict)) {
+      const latest = await fetchVideos();
+      for (const flagged of records.filter((r) => r.conflict)) {
+        const other = latest.find((v) => v.id === flagged.video.id);
+        if (!other) continue;
+        await db.mutate(scope, flagged.video.id, (current) => {
+          if (!current?.conflict) return current;
+          const merged = mergeCloudVideo(current.video, current.base, other);
+          if (!merged) return { ...current, conflict: other };
+          const equal = sameVideoContent(merged, other);
+          return {
+            ...current,
+            video: { ...merged, revision: other.revision },
+            base: other,
+            dirty: !equal,
+            conflict: null,
+            token: crypto.randomUUID(),
+          };
+        });
+      }
+      await reload();
+    }
     for (const record of records.filter((r) => r.dirty && !r.conflict)) {
       const remote = await saveVideo(record.video, record.video.revision);
       if (scope !== myScope) return;
