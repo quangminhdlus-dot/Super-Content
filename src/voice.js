@@ -291,7 +291,8 @@ export function initVoice({
         s.start = s.end = result.cursor;
         s.target.dispatchEvent(new Event("input", { bubbles: true }));
         try { onInserted({ target: s.target, value: result.value }); } catch {}
-        close();
+        // The operation completed successfully; bypass only the dismissal guard.
+        close({ completed: true });
         return;
       }
       // Only show the recovery view when another edit or UI change prevents safe insertion.
