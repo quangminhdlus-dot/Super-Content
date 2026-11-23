@@ -39,7 +39,7 @@ export function initVoice({
   const setPhase = (phase) => {
     modal.dataset.voicePhase = phase;
     q(".voice-saving-indicator").hidden = phase !== "processing";
-    button("cancel").hidden = phase === "processing" || (session?.quick && phase === "error");
+    button("cancel").hidden = ["processing", "error"].includes(phase);
     q("#voice-clock").hidden = !["recording", "paused", "ready"].includes(phase);
     q(".voice-orbit").hidden = phase === "processing" || phase === "review";
   };
@@ -145,7 +145,7 @@ export function initVoice({
   }
   function close({ discard = false, skipQuickClosed = false, completed = false } = {}) {
     const s = session;
-    if ((modal.dataset.voicePhase === "processing" || (s?.quick && modal.dataset.voicePhase === "error")) && !completed) return false;
+    if (["processing", "error"].includes(modal.dataset.voicePhase) && !completed) return false;
     if (s?.quick && !s.savedId && !discard &&
         (s.original || s.audio || s.bytes > 0 ||
          ["recording", "paused", "ready", "processing"].includes(modal.dataset.voicePhase)) &&
@@ -291,7 +291,8 @@ export function initVoice({
         s.start = s.end = result.cursor;
         s.target.dispatchEvent(new Event("input", { bubbles: true }));
         try { onInserted({ target: s.target, value: result.value }); } catch {}
-        close();
+        // The operation completed successfully; bypass only the dismissal guard.
+        close({ completed: true });
         return;
       }
       // Only show the recovery view when another edit or UI change prevents safe insertion.
@@ -519,7 +520,7 @@ export function initVoice({
     if (session && session.recorder?.state === "recording") pauseOrResume(session);
   });
   window.addEventListener("beforeunload", (event) => {
-    if (session && (modal.dataset.voicePhase === "processing" || (session.quick && modal.dataset.voicePhase === "error"))) {
+    if (session && ["processing", "error"].includes(modal.dataset.voicePhase)) {
       event.preventDefault();
       event.returnValue = "";
     }

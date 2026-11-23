@@ -4,7 +4,7 @@ async function setup(page, { mp4 = false } = {}) {
   await page.route("**/voice-test", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<html lang="vi"><head><meta charset="utf-8"></head><body><label>Tiêu đề<input id="video-title" value=""></label><label>Nội dung<textarea id="target">Đầu Cuối</textarea></label></body></html>',
+      body: '<html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="./src/styles.css"></head><body><label>Tiêu đề<input id="video-title" value=""></label><label>Nội dung<textarea id="target">Đầu Cuối</textarea></label></body></html>',
     }),
   );
   await page.goto("./voice-test");
@@ -15,6 +15,7 @@ async function setup(page, { mp4 = false } = {}) {
       window.stopped = 0;
       window.failPolish = false;
       window.failTranscribe = false;
+      window.deferTranscribe = false;
       window.denied = false;
       window.delayPermission = false;
       window.testStream = () => ({
@@ -78,8 +79,16 @@ async function setup(page, { mp4 = false } = {}) {
           });
         }
       };
-      initVoice({
+      window.voiceApi = initVoice({
         authorize: async () => {},
+        onQuickTranscript: async (text) => {
+          window.quickSavedText = text;
+          return "saved-idea-1";
+        },
+        onQuickPolished: async (_id, _original, polished) => {
+          window.quickPolishedText = polished;
+        },
+        onQuickClosed: (id) => { window.quickClosedId = id; },
         request: async (operation, body, signal) => {
           window.requests.push({
             operation,
@@ -89,6 +98,9 @@ async function setup(page, { mp4 = false } = {}) {
           if (signal.aborted) throw new Error("cancelled");
           if (operation === "transcribe") {
             if (window.failTranscribe) throw new Error("Mất mạng thử nghiệm");
+            if (window.deferTranscribe) {
+              await new Promise((resolve) => { window.resumeTranscribe = resolve; });
+            }
             return "ừ nội dung gốc";
           }
           if (window.failPolish) throw new Error("Lỗi biên tập thử nghiệm");
@@ -134,6 +146,45 @@ async function record(page, { expectSuccess = true } = {}) {
     await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
   }
 }
+
+test("Send shows ONLY compact animated saving icon and cannot be dismissed while processing", async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => { window.deferTranscribe = true; });
+  await open(page);
+  await page.getByRole("button", { name: "Gửi bản ghi", exact: true }).click();
+  const panel = page.locator("#voice-dialog");
+  await expect(panel).toHaveAttribute("data-voice-phase", "processing");
+  await expect(panel.locator(".voice-saving-indicator")).toBeVisible();
+  await expect(panel.locator(".voice-saving-spinner")).toBeVisible();
+  await expect(panel.locator(".voice-heading")).toBeHidden();
+  await expect(panel.locator("#voice-status")).toBeHidden();
+  await expect(panel.locator(".voice-disclosure")).toBeHidden();
+  await expect(panel.locator('[data-voice="cancel"]')).toBeHidden();
+  const box = await panel.boundingBox();
+  expect(box.width).toBeLessThan(140);
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeVisible();
+  await page.evaluate(() => { window.resumeTranscribe(); });
+  await expect(panel).toHaveCount(0);
+});
+
+test("Quick idea Send uses the same compact processing UI until saved", async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => { window.deferTranscribe = true; });
+  await page.evaluate(() => window.voiceApi.open(document.querySelector("#target"), { quick: true }));
+  await expect(page.getByRole("button", { name: "Gửi bản ghi" })).toBeVisible();
+  await page.getByRole("button", { name: "Gửi bản ghi" }).click();
+  const panel = page.locator("#voice-dialog");
+  await expect(panel).toHaveAttribute("data-voice-phase", "processing");
+  await expect(panel.locator(".voice-saving-indicator")).toBeVisible();
+  await expect(panel.locator(".voice-heading")).toBeHidden();
+  await expect(panel.locator('[data-voice="cancel"]')).toBeHidden();
+  await page.evaluate(() => window.resumeTranscribe());
+  await expect(panel).toHaveCount(0);
+  expect(await page.evaluate(() => window.quickSavedText)).toBe("ừ nội dung gốc");
+  expect(await page.evaluate(() => window.quickClosedId)).toBe("saved-idea-1");
+});
+
 test("voice recorder attaches to content, never to a title field", async ({ page }) => {
   await setup(page);
   await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung" })).toHaveCount(1);
