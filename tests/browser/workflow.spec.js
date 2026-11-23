@@ -59,6 +59,31 @@ test("new idea saves title and content together in one submission", async ({ pag
   await expect(page.locator("#idea-content")).toHaveValue("Ví dụ so sánh kẹo ngọt với video vô bổ.");
 });
 
+test("production stages show only heading; mobile viewport disallows page zoom", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
+  expect(viewport).toContain("maximum-scale=1");
+  expect(viewport).toContain("user-scalable=no");
+  const stageTitles = [
+    ["Ý tưởng", "Kho ý tưởng"],
+    ["Kịch bản", "Lên kịch bản"],
+    ["Chờ quay", "Chờ quay"],
+    ["Hoàn thiện", "Hoàn thiện"],
+    ["Đã đăng", "Đã xuất bản"],
+  ];
+  for (const [nav, heading] of stageTitles) {
+    await stage(page, nav).click();
+    await expect(page.locator(".page-heading h1")).toContainText(heading);
+    await expect(page.locator(".page-heading .eyebrow")).toHaveCount(0);
+    await expect(page.locator(".page-heading p")).toHaveCount(0);
+    await expect(page.locator(".list-foot")).toHaveCount(0);
+  }
+  expect(
+    await page.evaluate(() => getComputedStyle(document.documentElement).touchAction),
+  ).toBe("pan-x pan-y");
+});
+
 test("full 20 → 7 workflow, stable IDs, script, offline persistence, archive and trash", async ({
   page,
   context,

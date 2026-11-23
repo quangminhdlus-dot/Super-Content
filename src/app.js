@@ -140,7 +140,8 @@ function publishedIcon() {
 }
 function listHTML() {
   const i = STAGES.indexOf(view);
-  return `<section class="page-heading"><div><div class="eyebrow">${i >= 0 ? `CÔNG ĐOẠN 0${i + 1} / 05` : "QUẢN LÝ NỘI DUNG"}</div><h1>${LABELS[i] || (view === "archive" ? "Lưu trữ" : "Thùng rác")}<span class="heading-count">${count(view)}</span></h1><p>${["Lưu lại ý tưởng. Chọn nội dung bạn muốn bắt đầu.", "Phát triển ý tưởng thành câu chuyện của bạn.", "Kịch bản đã sẵn sàng. Đến lúc bấm máy.", "Dựng phim và hoàn thiện những chi tiết cuối.", "Những nội dung đã đến với khán giả."][i] || "Nội dung được giữ lại cùng toàn bộ thông tin."}</p></div>${view === "ideas" ? `<button class="primary" data-action="add">${icon("plus")} Thêm ý tưởng</button>` : ""}</section><section class="panel list-panel"><div class="list-toolbar"><label class="search">${icon("search")}<input id="search" placeholder="Tìm kiếm tiêu đề, ghi chú…" aria-label="Tìm kiếm" value="${e(search)}"></label><span class="sort-label">Mới nhất trước</span></div><div class="list-caption"><label><input type="checkbox" id="select-all"> <span>Chọn tất cả</span></label><span id="result-count"></span></div><div id="rows"></div></section><div class="list-foot">${icon("check")} Mỗi video, một hồ sơ xuyên suốt 5 công đoạn.</div>`;
+  const title = LABELS[i] || (view === "archive" ? "Lưu trữ" : "Thùng rác");
+  return `<section class="page-heading"><div><h1>${title}<span class="heading-count">${count(view)}</span></h1></div>${view === "ideas" ? `<button class="primary" data-action="add">${icon("plus")} Thêm ý tưởng</button>` : ""}</section><section class="panel list-panel"><div class="list-toolbar"><label class="search">${icon("search")}<input id="search" placeholder="Tìm kiếm tiêu đề, ghi chú…" aria-label="Tìm kiếm" value="${e(search)}"></label><span class="sort-label">Mới nhất trước</span></div><div class="list-caption"><label><input type="checkbox" id="select-all"> <span>Chọn tất cả</span></label><span id="result-count"></span></div><div id="rows"></div></section>`;
 }
 function renderRows() {
   const list = rows(),
@@ -799,6 +800,24 @@ document.addEventListener("input", (ev) => {
     renderSelection();
   }
 });
+
+// Prevent accidental page zoom on touch devices while preserving normal scrolling.
+if (window.matchMedia("(pointer: coarse)").matches) {
+  const preventPinch = (event) => {
+    if (event.cancelable) event.preventDefault();
+  };
+  for (const name of ["gesturestart", "gesturechange", "gestureend"]) {
+    document.addEventListener(name, preventPinch, { passive: false });
+  }
+  document.addEventListener(
+    "touchmove",
+    (event) => {
+      if (event.touches.length > 1 && event.cancelable) event.preventDefault();
+    },
+    { passive: false },
+  );
+}
+
 window.addEventListener("online", sync);
 setInterval(() => {
   if (user) sync();

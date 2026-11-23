@@ -1593,3 +1593,15 @@ select:focus {
   #dialog { padding: 16px; max-height: calc(100dvh - 24px); }
   .idea-create-form .dialog-footer { margin-top: 12px; }
 }
+
+
+/* Touchscreen scrolling stays available; double-tap/pinch page zoom is disabled. */
+html,
+body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+}
+/* Compact production headings: only stage name, count, and primary action. */
+.page-heading {
+  margin-bottom: 22px;
+}
