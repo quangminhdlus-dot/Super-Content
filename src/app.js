@@ -480,7 +480,7 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Gợi ý tiêu đề từ nội dung</button><small id="title-suggestion-status" role="status"></small></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -533,34 +533,95 @@ function moveAccidentalTitleToContent() {
 }
 
 let titleSuggestionSequence = 0;
-async function suggestTitleForIdea() {
+function renderTitleEvidence(result, id, sourceContent) {
+  const surface = document.querySelector("#title-suggestions");
+  if (!surface || editing !== id) return;
+  surface.replaceChildren();
+  const addText = (parent, text, className) => {
+    const element = document.createElement("p");
+    if (className) element.className = className;
+    element.textContent = text;
+    parent.append(element);
+    return element;
+  };
+  const framework = result.framework || "Góc nhìn thu hút";
+  addText(surface, "Mô thức: " + framework + (result.explanation ? " · " + result.explanation : ""), "title-pattern");
+  const options = [result.title, ...(result.alternatives || [])].filter(Boolean);
+  const group = document.createElement("div");
+  group.className = "title-option-list";
+  for (const [index, option] of options.entries()) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "title-option";
+    button.textContent = (index + 1) + ". " + option;
+    button.setAttribute("aria-label", "Dùng tiêu đề " + (index + 1));
+    button.addEventListener("click", () => {
+      const input = document.querySelector("#video-title");
+      const content = document.querySelector("#idea-content");
+      if (editing !== id || !input || !content || content.value.trim() !== sourceContent) return;
+      input.value = option;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      surface.querySelectorAll(".title-option").forEach((btn) => btn.classList.toggle("selected", btn === button));
+    });
+    group.append(button);
+  }
+  surface.append(group);
+  const research = result.research || {};
+  if (research.status === "verified")
+    addText(surface, "Đối chiếu " + research.sampledVideos + " video trong 12 tháng; có " + research.verifiedOutliers + " mẫu vượt hiệu suất tương đối của kênh (ít nhất 2×). Đây không phải tỷ lệ nhấp hay bằng chứng rằng riêng tiêu đề tạo ra lượt xem.", "title-source-note");
+  else if (research.status === "sampled")
+    addText(surface, "Tham khảo " + research.sampledVideos + " video trong 12 tháng; chưa có đủ mẫu để xác nhận video vượt hiệu suất kênh. Tiêu đề được chọn theo mô thức biên tập.", "title-source-note");
+  else
+    addText(surface, "Đề xuất theo mô thức biên tập; chưa đối chiếu được dữ liệu YouTube trực tiếp trong lượt này.", "title-source-note");
+  const samples = (research.examples || []).filter((item) =>
+    /^https:\/\/www\.youtube\.com\/watch\?v=[A-Za-z0-9_-]{11}$/.test(item.url || ""));
+  if (samples.length) {
+    const links = document.createElement("div");
+    links.className = "title-sources";
+    for (const [i, source] of samples.slice(0, 3).entries()) {
+      const link = document.createElement("a");
+      link.href = source.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Video tham khảo " + (i + 1) + " · " + source.channel +
+        (source.relativeViewRate ? " · " + source.relativeViewRate + "×" : "");
+      links.append(link);
+    }
+    surface.append(links);
+  }
+}
+async function suggestTitleForIdea({ manual = false } = {}) {
   const id = editing;
   const target = document.querySelector("#idea-content");
   const titleInput = document.querySelector("#video-title");
   const status = document.querySelector("#title-suggestion-status");
-  if (!id || !target || !titleInput || titleInput.value.trim()) return;
+  if (!id || !target || !titleInput || (!manual && titleInput.value.trim())) return;
   const content = target.value.trim();
   if (!content) {
-    if (status) status.textContent = "Hãy nhập hoặc ghi âm nội dung ý tưởng trước.";
+    if (status) status.textContent = "Hãy viết hoặc ghi âm ý tưởng trước.";
     return;
   }
+  const initialTitle = titleInput.value.trim();
   const sequence = ++titleSuggestionSequence;
-  if (status) status.textContent = "Đang đề xuất tiêu đề…";
+  if (status) status.textContent = "Đang tìm mẫu YouTube và xây dựng tiêu đề…";
   try {
-    const suggestion = await voiceRequest("title", content, new AbortController().signal);
+    const result = await voiceRequest("title", content, new AbortController().signal, { detailed: true });
     if (
       sequence !== titleSuggestionSequence ||
       editing !== id ||
       document.querySelector("#idea-content")?.value.trim() !== content ||
       titleInput !== document.querySelector("#video-title") ||
-      titleInput.value.trim()
+      titleInput.value.trim() !== initialTitle
     ) return;
-    titleInput.value = suggestion;
-    titleInput.dispatchEvent(new Event("input", { bubbles: true }));
-    if (status) status.textContent = "Đã gợi ý tiêu đề. Anh có thể chỉnh sửa.";
+    if (!initialTitle) {
+      titleInput.value = result.title;
+      titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    renderTitleEvidence(result, id, content);
+    if (status) status.textContent = "Đã đề xuất " + (1 + (result.alternatives || []).length) + " tiêu đề; anh có thể chọn hoặc chỉnh sửa.";
   } catch {
     if (status?.isConnected && editing === id)
-      status.textContent = "Chưa gợi ý được tiêu đề. Nội dung đã được giữ; bấm để thử lại.";
+      status.textContent = "Chưa đề xuất được tiêu đề. Nội dung vẫn được lưu, bấm để thử lại.";
   }
 }
 
@@ -854,7 +915,7 @@ document.addEventListener("click", async (ev) => {
           break;
         }
         case "suggest-title":
-          await suggestTitleForIdea();
+          await suggestTitleForIdea({ manual: true });
           break;
         case "move-title-to-content":
           moveAccidentalTitleToContent();

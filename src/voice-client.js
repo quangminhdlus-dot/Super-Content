@@ -23,7 +23,7 @@ export async function authorizeVoice() {
     throw new Error("Vui lòng đăng nhập trong Cài đặt để dùng ghi âm AI.");
   return data.session.access_token;
 }
-export async function voiceRequest(operation, body, signal) {
+export async function voiceRequest(operation, body, signal, { detailed = false } = {}) {
   if (!navigator.onLine)
     throw new Error(
       "Đang mất mạng. Đoạn ghi được giữ trong cửa sổ này; kết nối lại rồi bấm Thử lại.",
@@ -60,7 +60,7 @@ export async function voiceRequest(operation, body, signal) {
       value.length > MAX_TRANSCRIPT_CHARS
     )
       throw new Error("Máy chủ trả về bản chép không hợp lệ.");
-    return value;
+    return detailed && operation === "title" ? result : value;
   } catch (error) {
     if (signal.aborted) throw error;
     if (controller.signal.aborted || error instanceof TypeError)
