@@ -53,3 +53,12 @@ Theo bảng giá OpenAI kiểm tra ngày 23/11/2026: [gpt-transcribe](https://de
 - Dừng bằng nút vuông, xem bản chép, chọn bản cần dùng và bấm **Lưu ý tưởng**; ứng dụng tự tạo ý tưởng ở **Kho ý tưởng**, lưu lời nói ở trường **nội dung**, và đề xuất tiêu đề sau nếu bỏ trống.
 - Tối đa **10 phút / đoạn hoặc 8 MiB**, tùy ngưỡng đạt trước. Giới hạn kỹ thuật không phải phút sử dụng miễn phí.
 - Hệ thống hiện cho phép **30 lần nhận dạng / giờ / tài khoản** và 30 lần biên tập / giờ; không có hạn mức phút miễn phí hoặc tổng thời lượng/ngày do ứng dụng đảm bảo. OpenAI API tính phí riêng theo mức dùng; ngân sách cần theo dõi trong OpenAI Platform.
+
+
+## Cập nhật điều khiển ghi âm và chống mất ý tưởng
+
+- Khi ghi có **Xóa (X)**, **Tạm dừng/Tiếp tục** và **Gửi (mũi tên)**. Tạm dừng chỉ đóng băng đồng hồ, không gửi dữ liệu và không tạo ý tưởng. Nút gửi hoàn tất đoạn ghi, nhận dạng rồi lưu.
+- Ở nút **Ghi ý tưởng nhanh**, bản chép **gốc** được lưu vào Kho ý tưởng bằng IndexedDB và đưa vào hàng chờ đồng bộ **ngay sau khi nhận dạng thành công, trước khi AI trau chuốt**. Lỗi biên tập không làm mất bản chép gốc.
+- Sau gửi hiện lựa chọn **Mở trong Kho ý tưởng** hoặc **Lưu vào kịch bản** (chuyển mục đã lưu sang công đoạn Lên kịch bản). Đóng cửa sổ sau khi đã lưu vẫn giữ nguyên ý tưởng.
+- Nếu tải lên/nhận dạng lỗi trước khi có bản chép, âm thanh vẫn được giữ **trong cửa sổ ghi hiện tại** để Thử lại. Đóng khi chưa gửi/chưa lưu có xác nhận xóa; Xóa chủ động sẽ hủy bản ghi. Không hứa khôi phục âm thanh nếu trình duyệt bị hệ điều hành đóng hoặc tải lại trước khi nhận dạng.
+- Chuyển ứng dụng sang nền khi đang ghi sẽ cố tạm dừng, không tự động gửi. Giới hạn 10 phút là **thời gian ghi thực tế**, không cộng thời gian tạm dừng. Khi hết thời lượng, cần chạm Gửi để hoàn tất.

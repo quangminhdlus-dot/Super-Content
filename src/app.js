@@ -50,7 +50,35 @@ const e = (s) =>
 const voice = initVoice({
   onInserted: ({ target }) => {
     if (target.id === "idea-content") void suggestTitleForIdea();
-    if (target.id === "quick-idea-content") void saveQuickRecordedIdea(target.value);
+  },
+  onQuickTranscript: async (text) => saveQuickRecordedIdea(text),
+  onQuickPolished: async (id, original, polished) => {
+    if (original === polished) return;
+    await enqueue(id, (v) => v.notes === original ? { ...v, notes: polished } : v);
+    scheduleSync();
+  },
+  onQuickClosed: (id) => {
+    if (!id) return;
+    editing = null;
+    selected.clear();
+    search = "";
+    view = "ideas";
+    render();
+    const saved = videos().find((v) => v.id === id);
+    if (saved && !saved.title) void suggestNewIdeaTitle(id, saved.notes);
+  },
+  onQuickOpen: async (id, stage) => {
+    if (stage === "script") {
+      await enqueue(id, (v) => transition(v, "script"));
+      scheduleSync();
+    }
+    editing = id;
+    view = stage === "script" ? "script" : "ideas";
+    search = "";
+    selected.clear();
+    render();
+    const saved = videos().find((v) => v.id === id);
+    if (saved && !saved.title) void suggestNewIdeaTitle(id, saved.notes);
   },
 });
 let user = null,
@@ -387,27 +415,12 @@ function addModal() {
 // Save a voice-captured idea directly into the idea inbox after user confirmation.
 async function saveQuickRecordedIdea(value) {
   const content = value.trim();
-  if (!content) return;
+  if (!content) throw new Error("Chưa nhận dạng được nội dung để lưu.");
   const video = { ...createVideo("", user?.id), notes: content };
-  try {
-    await enqueue(video.id, () => video);
-    editing = null;
-    selected.clear();
-    search = "";
-    view = "ideas";
-    render();
-    scheduleSync();
-    toast("Đã lưu ý tưởng từ ghi âm");
-    void suggestNewIdeaTitle(video.id, content);
-  } catch {
-    editing = null;
-    view = "ideas";
-    render();
-    addModal();
-    const field = dialog.querySelector("#new-idea-content");
-    if (field) field.value = content;
-    toast("Chưa lưu được. Nội dung đã được giữ trong biểu mẫu để anh thử lại.");
-  }
+  // Commit to IndexedDB before returning to the voice processor.
+  await enqueue(video.id, () => video);
+  scheduleSync();
+  return video.id;
 }
 
 // Suggest a title after saving the content; do not block the creation flow.

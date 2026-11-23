@@ -1815,3 +1815,60 @@ body {
   .quick-record-button:hover { background: #ff9443; border-color: #ffbb8b; }
   .quick-record-button:active { transform: scale(.95); }
 }
+
+
+/* Explicit recording controls: delete, pause/resume, send. */
+#voice-dialog .voice-primary-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 8px;
+  min-height: 74px;
+}
+#voice-dialog .voice-icon-action {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  width: 58px;
+  height: 58px;
+  min-height: 58px;
+  background: #29303a;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+#voice-dialog .voice-icon-action svg { width: 25px; height: 25px; }
+#voice-dialog .voice-delete { color: #f58a82; }
+#voice-dialog .voice-pause { color: #e9e9ee; }
+#voice-dialog .voice-send {
+  width: 68px;
+  height: 68px;
+  min-height: 68px;
+  background: var(--accent);
+  border-color: #ffae78;
+  color: #1c130c;
+  box-shadow: 0 7px 25px #ff7a1a2a;
+}
+#voice-dialog .voice-send svg { width: 29px; height: 29px; }
+#voice-dialog[data-voice-phase="paused"] .voice-mic-core,
+#voice-dialog[data-voice-phase="ready"] .voice-mic-core {
+  box-shadow: none;
+  opacity: .65;
+}
+#voice-dialog[data-voice-phase="paused"] .voice-disclosure,
+#voice-dialog[data-voice-phase="ready"] .voice-disclosure { display: none; }
+#voice-dialog[data-voice-phase="recording"] .voice-heading [data-voice=cancel],
+#voice-dialog[data-voice-phase="paused"] .voice-heading [data-voice=cancel],
+#voice-dialog[data-voice-phase="ready"] .voice-heading [data-voice=cancel] { display: none; }
+#voice-dialog .voice-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 12px;
+}
+#voice-dialog .voice-quick-actions button { min-height: 44px; }
+@media (max-width: 600px) {
+  #voice-dialog .voice-primary-controls { gap: 14px; }
+}
