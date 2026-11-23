@@ -23,6 +23,38 @@ async function utility(page, name) {
     .getByRole("button", { name: new RegExp(`^${name} \\(`) })
     .click();
 }
+test("dark panels have no bright borders, empty-stage icons are blue, and checkboxes are sharp square", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  const primary = page.getByRole("button", { name: "Thêm ý tưởng", exact: true });
+  await expect(primary).toHaveCSS("background-color", "rgb(8, 102, 255)");
+  await expect(primary).toHaveCSS("border-top-color", "rgb(8, 102, 255)");
+
+  await stage(page, "Kịch bản").click();
+  const emptyIcon = page.locator(".empty-icon");
+  await expect(emptyIcon).toBeVisible();
+  await expect(emptyIcon).toHaveCSS("color", "rgb(47, 130, 255)");
+  await expect(emptyIcon).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator(".panel").first()).toHaveCSS("border-top-width", "0px");
+
+  await stage(page, "Ý tưởng").click();
+  await add(page, "Ý tưởng về sức mạnh của hành động");
+  const item = page.locator(".row-check").first();
+  await expect(item).toHaveCSS("border-top-left-radius", "0px");
+  await expect(item).toHaveCSS("border-bottom-right-radius", "0px");
+  await item.check();
+  await expect(item).toBeChecked();
+  await expect(item).toHaveCSS("border-top-color", "rgb(8, 102, 255)");
+  const tickColor = await item.evaluate((el) => getComputedStyle(el, "::after").borderBottomColor);
+  expect(tickColor).toBe("rgb(38, 125, 255)");
+  await page.locator("#select-all").check();
+  await expect(page.locator("#select-all")).toHaveCSS("border-top-left-radius", "0px");
+
+  await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
+  await expect(page.locator("#dialog")).toHaveCSS("border-top-width", "0px");
+  await expect(page.locator("#new-idea-content")).toHaveCSS("border-top-color", "rgba(0, 0, 0, 0)");
+});
+
 test("new idea saves content without a title; microphone is icon-only on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
