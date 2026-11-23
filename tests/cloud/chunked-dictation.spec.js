@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 async function setup(page, mode = "normal") {
   await page.route("**/chunk-test", route => route.fulfill({
     contentType: "text/html",
-    body: '<!doctype html><html><body><textarea id="idea">Mở đầu</textarea><button id="mic">🎙</button><p id="status"></p><button id="other">Nút khác</button><output id="touches">0</output></body></html>',
+    body: '<!doctype html><html><head><meta charset="utf-8"></head><body><textarea id="idea">Mở đầu</textarea><button id="mic">🎙</button><p id="status"></p><button id="other">Nút khác</button><output id="touches">0</output></body></html>',
   }));
   await page.goto("./chunk-test");
   await page.evaluate(async (mode) => {
