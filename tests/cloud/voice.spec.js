@@ -130,7 +130,7 @@ async function record(page) {
   await page
     .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
-  await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
+  await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
 }
 test("voice recorder attaches to content, never to a title field", async ({ page }) => {
   await setup(page);
