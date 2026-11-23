@@ -57,11 +57,15 @@ export function createLiveDictation({
     if (!s) return;
     if (s.stopping) return;
     s.stopping = true;
+    // Persist the currently visible interim phrase immediately; navigation
+    // or form submission may remove the textarea before speechend arrives.
+    commit(s);
     setStatus("Đang hoàn tất câu cuối…");
     try {
       s.engine.stop();
       // Some Safari implementations omit end after a paused recognition.
-      s.stopTimer = window.setTimeout(() => release(s, "Đã dừng. Chạm micro để đọc tiếp."), 1800);
+      if (current === s)
+        s.stopTimer = window.setTimeout(() => release(s, "Đã dừng. Chạm micro để đọc tiếp."), 1800);
     } catch {
       release(s, "Đã dừng. Chạm micro để đọc tiếp.");
     }
