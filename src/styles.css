@@ -686,7 +686,8 @@ dialog::backdrop {
   font-size: 0.7rem;
   color: var(--dim);
 }
-#script {
+#script,
+#idea-content {
   display: block;
   width: 100%;
   min-height: 65dvh;
@@ -1580,4 +1581,3 @@ select:focus {
 .title-ai-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
 .title-ai-tools button { color:var(--accent); font-size:0.73rem; padding:7px 10px; }
 .title-ai-tools small { color:var(--muted); font-size:0.67rem; }
-#idea-content { min-height:360px; }
