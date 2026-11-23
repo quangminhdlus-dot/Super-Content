@@ -337,7 +337,7 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Gợi ý tiêu đề từ nội dung</button><small id="title-suggestion-status" role="status"></small></div>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Gợi ý tiêu đề từ nội dung</button><small id="title-suggestion-status" role="status"></small></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -377,6 +377,18 @@ function bindEditor() {
     }),
   );
 }
+function moveAccidentalTitleToContent() {
+  const title = document.querySelector("#video-title");
+  const content = document.querySelector("#idea-content");
+  if (!title?.value.trim() || !content || content.value.trim()) return;
+  if (!window.confirm("Chuyển toàn bộ tiêu đề hiện tại xuống Nội dung ý tưởng, rồi để AI gợi ý một tiêu đề ngắn hơn?")) return;
+  content.value = title.value.trim();
+  title.value = "";
+  title.dispatchEvent(new Event("input", { bubbles: true }));
+  content.dispatchEvent(new Event("input", { bubbles: true }));
+  void suggestTitleForIdea();
+}
+
 let titleSuggestionSequence = 0;
 async function suggestTitleForIdea() {
   const id = editing;
@@ -648,6 +660,9 @@ document.addEventListener("click", async (ev) => {
           break;
         case "suggest-title":
           await suggestTitleForIdea();
+          break;
+        case "move-title-to-content":
+          moveAccidentalTitleToContent();
           break;
         case "settings":
           settings();
