@@ -23,6 +23,7 @@ export function createChunkedDictation({
   clipMs = 5300,
   startupMs = 16000,
   transcribeMs = 22000,
+  stopMs = 2300,
 } = {}) {
   let current = null;
   const say = (message) => {
@@ -138,7 +139,7 @@ export function createChunkedDictation({
     s.endTimer = setTimeout(() => {
       if (s.recorder === recorder && !s.completed)
         fail(s, "Trình duyệt không hoàn tất đoạn ghi. Micro đã được giải phóng.");
-    }, 2300);
+    }, stopMs);
   }
   function startClip(s) {
     if (s.completed || s.stopping || s.recorder || !s.stream) return;
