@@ -559,9 +559,12 @@ export function initVoice({
         b.addEventListener("pointerdown", () => {
           selection = [target.selectionStart, target.selectionEnd, target.scrollTop];
         });
-        const toolbar = ["script", "idea-content"].includes(target.id)
-          ? target.parentElement.querySelector(".script-toolbar")
+        const toolbar = target.id === "script"
+          ? target.closest(".script-panel")?.querySelector(".script-toolbar")
           : null;
+        // Idea dictation belongs beside the writing area rather than at the
+        // distant heading: on mobile it becomes a reachable floating control.
+        if (target.id === "idea-content") b.classList.add("idea-dictation-float");
         if (toolbar) toolbar.append(b);
         else target.insertAdjacentElement("afterend", b);
         if (inline) {
