@@ -203,6 +203,14 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     12,
   );
   // One-tap microphone creates an entirely new idea without opening the add form.
+  await a.evaluate(() => {
+    const oscillator = window.voiceTestAudio.createOscillator();
+    const output = window.voiceTestAudio.createMediaStreamDestination();
+    oscillator.connect(output);
+    oscillator.start();
+    window.voiceTestStream = output.stream;
+    navigator.mediaDevices.getUserMedia = async () => output.stream;
+  });
   const beforeQuick = await a.evaluate(() => window.voiceTestBytes);
   await a.getByRole("button", { name: "Ghi ý tưởng nhanh" }).click();
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
