@@ -2320,3 +2320,53 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
     box-shadow: 0 5px 18px #020a18aa;
   }
 }
+
+/* Compact, non-dismissible quick-idea saving indicator after Send. */
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] {
+  width: 104px;
+  min-height: 104px;
+  padding: 20px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: 0 16px 55px #0005;
+}
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-heading,
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-recording-screen,
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-disclosure,
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-versions,
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-quick-actions { display: none !important; }
+#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] #voice-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+#voice-dialog .voice-saving-indicator {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  margin: auto;
+  position: relative;
+  color: var(--accent-readable);
+}
+#voice-dialog .voice-saving-indicator svg { width: 30px; height: 30px; }
+#voice-dialog .voice-saving-spinner {
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+  border-radius: 50%;
+  animation: voice-saving-spin 1s linear infinite;
+}
+@keyframes voice-saving-spin { to { transform: rotate(360deg); } }
+#voice-dialog[data-voice-quick="true"][data-voice-phase="error"] .voice-heading [data-voice="cancel"] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  #voice-dialog .voice-saving-spinner { animation-duration: 2.5s; }
+}
