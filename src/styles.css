@@ -946,7 +946,8 @@ dialog::backdrop {
   .script-toolbar {
     padding: 15px;
   }
-  #script {
+  #script,
+  #idea-content {
     min-height: 55dvh;
     padding: 18px;
   }
@@ -1574,3 +1575,9 @@ select:focus {
     flex: 1 1 140px;
   }
 }
+
+/* Voice-first ideas keep the description prominent, separate from the optional title. */
+.title-ai-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
+.title-ai-tools button { color:var(--accent); font-size:0.73rem; padding:7px 10px; }
+.title-ai-tools small { color:var(--muted); font-size:0.67rem; }
+#idea-content { min-height:360px; }
