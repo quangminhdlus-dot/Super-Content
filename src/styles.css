@@ -2337,14 +2337,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 #voice-dialog[data-voice-phase="processing"] .voice-versions,
 #voice-dialog[data-voice-phase="processing"] .voice-quick-actions { display: none !important; }
 #voice-dialog[data-voice-phase="processing"] #voice-status {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  display: none !important;
 }
 #voice-dialog .voice-saving-indicator {
   width: 64px;
