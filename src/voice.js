@@ -626,6 +626,7 @@ export function initVoice({
   observer.observe(root, { childList: true, subtree: true });
   return {
     cancel: () => { cancelInline(); return close(); },
+    abortInline: cancelInline,
     stopInline,
     open,
     isActive: () => (!!session && modal.open) ||
