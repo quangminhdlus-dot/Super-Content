@@ -70,8 +70,7 @@ const voice = initVoice({
       await enqueue(id, (v) => v.notes === original ? { ...v, notes: polished } : v);
       scheduleSync();
     }
-    // Use the FINAL saved content for title generation; no manual selection.
-    void suggestNewIdeaTitle(id, polished);
+    // onQuickClosed schedules the title from the final persisted text once.
   },
   onQuickClosed: (id) => {
     if (!id) return;
