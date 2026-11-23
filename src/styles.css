@@ -1508,3 +1508,56 @@ select:focus {
     font-size: 1.1rem;
   }
 }
+/* Recording is separate from the editor DOM, preserving autosave and selection. */
+#voice-dialog {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  background: var(--panel, #191a1d);
+  color: inherit;
+  border: 1px solid #46403b;
+  border-radius: 16px;
+  padding: 24px;
+}
+#voice-dialog::backdrop {
+  background: #000a;
+}
+#voice-dialog textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+}
+#voice-dialog [hidden] {
+  display: none !important;
+}
+#voice-status {
+  min-height: 3em;
+  overflow-wrap: anywhere;
+}
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+}
+.voice-mic {
+  display: inline-flex;
+  align-self: flex-start;
+  width: fit-content;
+  min-height: 36px;
+  padding: 6px 10px;
+  margin: 6px 0;
+  color: #ff9c53;
+  font-size: 13px;
+}
+.voice-versions {
+  margin-top: 18px;
+}
+@media (max-width: 600px) {
+  #voice-dialog {
+    padding: 16px;
+  }
+  .voice-controls button {
+    flex: 1 1 140px;
+  }
+}
