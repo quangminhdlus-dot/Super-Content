@@ -151,57 +151,38 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
       await audio.resume();
       return destination.stream;
     };
+    // Browser speech recognition is now used inside the idea editor.
+    window.webkitSpeechRecognition = class {
+      constructor() { this.interimResults = false; this.continuous = false; }
+      start() { window.inlineSpeech = this; this.onstart?.(); }
+      stop() { this.onend?.(); }
+      abort() { this.onend?.(); }
+    };
     const script = document.querySelector("#idea-content");
     script.focus();
     script.setSelectionRange(0, 0);
   });
   await a.setViewportSize({ width: 390, height: 844 });
-  await a
-    .getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng", exact: true })
-    .click();
-  await expect(a.getByRole("button", { name: "Gửi bản ghi" })).toBeVisible();
-  await expect(a.getByRole("button", { name: "Ghi lại" })).toBeHidden();
-  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
-  await expect(a.locator("#voice-clock")).toBeVisible();
-  await expect(a.locator("#voice-elapsed")).toHaveText(/^\d{1,2}:\d{2}$/);
-  await expect(a.locator("#voice-limit")).toHaveText("10:00");
-  await expect(a.locator("#voice-dialog .voice-orbit")).toBeVisible();
-  await expect(a.locator("#voice-dialog .voice-bars")).toHaveCount(2);
-  await expect(a.getByRole("button", { name: "Gửi bản ghi" })).toHaveText("");
-  await expect(a.locator("#voice-status")).toBeHidden();
-  // Wait for actual encoded data, not AudioContext time that may predate recording.
-  await expect
-    .poll(() => a.evaluate(() => window.voiceTestBytes))
-    .toBeGreaterThan(0);
-  await a.getByRole("button", { name: "Tạm dừng" }).click();
-  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "paused");
-  await expect(a.getByRole("button", { name: "Tiếp tục" })).toBeVisible();
-  await a.getByRole("button", { name: "Tiếp tục" }).click();
-  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
-  await a
-    .getByRole("button", { name: "Gửi bản ghi", exact: true })
-    .click();
+  await a.getByRole("button", { name: "Bắt đầu nhập giọng nói cho Nội dung ý tưởng" }).click();
   await expect(a.locator("#voice-dialog")).toHaveCount(0);
+  await expect(a.getByRole("button", { name: "Dừng nhập giọng nói cho Nội dung ý tưởng" })).toHaveAttribute("aria-pressed", "true");
+  await a.evaluate(() => {
+    window.inlineSpeech.onresult?.({
+      results: [{ 0: { transcript: "Thêm ý" }, isFinal: false }],
+    });
+  });
+  await expect(a.locator("#idea-content")).toHaveValue("Thêm ý Giữ bản gốc");
+  await a.evaluate(() => {
+    window.inlineSpeech.onresult?.({
+      results: [{ 0: { transcript: "Thêm ý này." }, isFinal: true }],
+    });
+  });
   await expect(a.locator("#idea-content")).toHaveValue("Thêm ý này. Giữ bản gốc");
-  expect(
-    await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-  ).toBe(true);
-  await a.screenshot({ path: "test-results/voice-review.png", fullPage: true });
-  expect(recordedType).toMatch(/^audio\/webm/);
-  expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));
-  expect(
-    await a.evaluate(() =>
-      window.voiceTestStream
-        .getTracks()
-        .every((track) => track.readyState === "ended"),
-    ),
-  ).toBe(true);
-  await expect
-    .poll(() => [...server.values()][0].notes)
-    .toBe("Thêm ý này. Giữ bản gốc");
-  expect(await a.locator("#idea-content").evaluate((el) => el.selectionStart)).toBe(
-    12,
-  );
+  await a.getByRole("button", { name: "Dừng nhập giọng nói cho Nội dung ý tưởng" }).click();
+  await expect(a.getByRole("button", { name: "Bắt đầu nhập giọng nói cho Nội dung ý tưởng" })).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(() => [...server.values()][0].notes).toBe("Thêm ý này. Giữ bản gốc");
+  expect(await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await a.screenshot({ path: "test-results/live-dictation-review.png", fullPage: true });
   // One-tap microphone creates an entirely new idea without opening the add form.
   await a.evaluate(() => {
     const oscillator = window.voiceTestAudio.createOscillator();
@@ -239,6 +220,8 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await a.getByRole("button", { name: "Gửi bản ghi" }).click();
   // Single tap finishes capture, saves polished text, and returns to the ideas inbox.
   await expect(a.locator("#voice-dialog")).toHaveCount(0);
+  expect(recordedType).toMatch(/^audio\/webm/);
+  expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));
   await expect.poll(() => server.size).toBe(2);
   await expect(a.locator(".page-heading h1")).toContainText("Kho ý tưởng");
   await expect(a.locator(".video-row")).toHaveCount(2);
