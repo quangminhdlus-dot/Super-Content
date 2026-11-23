@@ -6,6 +6,7 @@ const stage = (page, name) =>
     .first();
 async function add(page, titles) {
   await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
+  await page.locator(".bulk-idea summary").click();
   await page.locator("[name=titles]").fill(titles);
   await page.getByRole("button", { name: "Thêm vào kho ý tưởng" }).click();
 }
@@ -22,22 +23,40 @@ async function utility(page, name) {
     .getByRole("button", { name: new RegExp(`^${name} \\(`) })
     .click();
 }
-test("voice-first idea saves its description without filling the title", async ({ page }) => {
+test("new idea saves content without a title; microphone is icon-only on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
   await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
-  await page.getByRole("button", { name: "Tạo ý tưởng bằng nội dung / ghi âm" }).click();
-  await expect(page.locator("#idea-content")).toBeVisible();
-  await expect(page.locator("#video-title")).toHaveValue("");
-  await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Ghi âm cho Tiêu đề/ })).toHaveCount(0);
-  await page.locator("#idea-content").fill("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
-  await expect(page.locator("#save-state")).toContainText("Đã lưu");
-  await page.getByRole("button", { name: "Danh sách", exact: true }).click();
+  await expect(page.locator("#new-idea-title")).toBeVisible();
+  await expect(page.locator("#new-idea-content")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tạo ý tưởng bằng nội dung / ghi âm" })).toHaveCount(0);
+  const mic = page.locator("#dialog .voice-icon-only");
+  await expect(mic).toBeVisible();
+  await expect(mic).toHaveText("🎙");
+  await expect(mic).toHaveAttribute("aria-label", "Ghi âm cho Nội dung ý tưởng");
+  await page.locator("#new-idea-content").fill("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
+  await page.getByRole("button", { name: "Lưu ý tưởng" }).click();
   await expect(page.locator(".video-row")).toContainText("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
   await page.reload();
   await page.locator(".video-main").first().click();
   await expect(page.locator("#idea-content")).toHaveValue("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
-  await expect(page.locator("#video-title")).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng" })).toBeVisible();
+});
+
+test("new idea saves title and content together in one submission", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
+  await page.locator("#new-idea-title").fill("Bữa ăn cho tâm trí");
+  await page.locator("#new-idea-content").fill("Ví dụ so sánh kẹo ngọt với video vô bổ.");
+  await page.getByRole("button", { name: "Lưu ý tưởng" }).click();
+  await expect(page.locator(".video-row")).toHaveCount(1);
+  await page.locator(".video-main").first().click();
+  await expect(page.locator("#video-title")).toHaveValue("Bữa ăn cho tâm trí");
+  await expect(page.locator("#idea-content")).toHaveValue("Ví dụ so sánh kẹo ngọt với video vô bổ.");
+  await page.reload();
+  await page.locator(".video-main").first().click();
+  await expect(page.locator("#video-title")).toHaveValue("Bữa ăn cho tâm trí");
+  await expect(page.locator("#idea-content")).toHaveValue("Ví dụ so sánh kẹo ngọt với video vô bổ.");
 });
 
 test("full 20 → 7 workflow, stable IDs, script, offline persistence, archive and trash", async ({

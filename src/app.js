@@ -275,18 +275,69 @@ function modal(html) {
 function addModal() {
   modal({
     title: "Thêm ý tưởng",
-    body: `<p class="muted">Muốn nói ra ý tưởng trước? Tạo ý tưởng mới, ghi âm vào phần nội dung và AI sẽ đề xuất tiêu đề khi bạn chưa đặt tên.</p><button type="button" class="primary" data-action="add-by-content">Tạo ý tưởng bằng nội dung / ghi âm</button><p class="muted">Hoặc nhập nhiều tiêu đề, mỗi dòng một ý tưởng:</p><form id="add-form"><label class="field">Tiêu đề video<textarea name="titles" rows="8" autofocus required placeholder="Một ý tưởng mới…\nMột câu chuyện đáng kể…"></textarea></label><div id="duplicates"></div><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Thêm vào kho ý tưởng ${icon("plus")}</button></div></form>`,
+    body: [
+      '<form id="add-form" class="idea-create-form">',
+      '<label class="field" for="new-idea-title">Tiêu đề video',
+      '<input id="new-idea-title" name="title" type="text" autofocus placeholder="Nhập tiêu đề (có thể để trống)"></label>',
+      '<label class="field" for="new-idea-content">Nội dung ý tưởng',
+      '<textarea id="new-idea-content" name="content" rows="7" aria-label="Nội dung ý tưởng" placeholder="Viết ý tưởng hoặc bấm biểu tượng micro để ghi âm…"></textarea></label>',
+      '<p class="muted">Có thể chỉ nhập nội dung; AI sẽ thử gợi ý tiêu đề khi lưu.</p>',
+      '<div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Lưu ý tưởng ',
+      icon("plus"),
+      '</button></div></form>',
+      '<details class="bulk-idea"><summary>Thêm nhiều tiêu đề cùng lúc</summary><form id="bulk-add-form">',
+      '<label class="field">Danh sách tiêu đề (mỗi dòng một ý tưởng)',
+      '<textarea name="titles" rows="6" required placeholder="Một ý tưởng mới…&#10;Một câu chuyện đáng kể…"></textarea></label>',
+      '<div id="duplicates"></div><div class="dialog-footer"><button class="primary" type="submit">',
+      'Thêm vào kho ý tưởng ', icon("plus"), '</button></div></form></details>',
+    ].join(""),
   });
-  let reviewed = false;
+
   dialog.querySelector("#add-form").onsubmit = async (ev) => {
     ev.preventDefault();
-    const form = ev.currentTarget,
-      parsed = parseTitles(form.elements.titles.value, videos());
+    const form = ev.currentTarget;
+    const title = form.elements.title.value.trim();
+    const content = form.elements.content.value.trim();
+    if (!title && !content) {
+      form.elements.content.focus();
+      toast("Hãy nhập tiêu đề hoặc nội dung ý tưởng.");
+      return;
+    }
+    if (title && parseTitles(title, videos())[0]?.duplicate &&
+        !confirm("Tiêu đề này đã tồn tại. Vẫn thêm ý tưởng mới?")) return;
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    const video = { ...createVideo(title, user?.id), notes: content };
+    try {
+      await enqueue(video.id, () => video);
+      dialog.close();
+      view = "ideas";
+      editing = null;
+      render();
+      scheduleSync();
+      toast("Đã thêm ý tưởng");
+      if (!title && content) void suggestNewIdeaTitle(video.id, content);
+    } catch {
+      toast("Không thể lưu ý tưởng. Hãy giữ nội dung đang nhập và thử lại.");
+      submit.disabled = false;
+    }
+  };
+
+  let reviewed = false;
+  dialog.querySelector("#bulk-add-form").onsubmit = async (ev) => {
+    ev.preventDefault();
+    const form = ev.currentTarget;
+    const parsed = parseTitles(form.elements.titles.value, videos());
     if (!parsed.length) return;
     const duplicates = parsed.filter((x) => x.duplicate);
     if (duplicates.length && !reviewed) {
       dialog.querySelector("#duplicates").innerHTML =
-        `<div class="warning">Có ${duplicates.length} tiêu đề trùng. Tích chọn những tiêu đề trùng bạn muốn giữ; bỏ tích để bỏ qua.</div>${parsed.map((p, i) => (p.duplicate ? `<label class="duplicate"><input type="checkbox" name="keep" value="${i}"> ${e(p.title)}</label>` : "")).join("")}`;
+        '<div class="warning">Có ' + duplicates.length +
+        ' tiêu đề trùng. Tích chọn những tiêu đề trùng bạn muốn giữ; bỏ tích để bỏ qua.</div>' +
+        parsed.map((p, i) => (p.duplicate
+          ? '<label class="duplicate"><input type="checkbox" name="keep" value="' +
+            i + '"> ' + e(p.title) + '</label>'
+          : '')).join('');
       reviewed = true;
       form.elements.titles.oninput = () => {
         reviewed = false;
@@ -309,22 +360,31 @@ function addModal() {
       dialog.close();
       render();
       scheduleSync();
-      toast(`Đã thêm ${added} ý tưởng`);
+      toast("Đã thêm " + added + " ý tưởng");
     } catch {
       toast("Không thể lưu tất cả tiêu đề. Hãy kiểm tra bộ nhớ thiết bị.");
       form.querySelector("[type=submit]").disabled = false;
     }
   };
 }
-async function createContentFirstIdea() {
-  const video = createVideo("", user?.id);
-  await enqueue(video.id, () => video);
-  if (dialog.open) dialog.close();
-  view = "ideas";
-  editing = video.id;
-  render();
-  scheduleSync();
-  document.querySelector("#idea-content")?.focus();
+
+// Suggest a title after saving the content; do not block the creation flow.
+async function suggestNewIdeaTitle(id, content) {
+  try {
+    const suggestion = (await voiceRequest("title", content, new AbortController().signal)).trim();
+    if (!suggestion) return;
+    const current = videos().find((v) => v.id === id);
+    if (!current || current.title.trim() || current.notes.trim() !== content || current.deleted_at) return;
+    await enqueue(id, (v) =>
+      v.title.trim() || v.notes.trim() !== content
+        ? v
+        : { ...v, title: suggestion },
+    );
+    scheduleSync();
+    if (!editing && !dialog.open && view === "ideas") render();
+  } catch {
+    // Keep saved content intact when AI title generation is unavailable.
+  }
 }
 
 function editorHTML() {
@@ -654,9 +714,6 @@ document.addEventListener("click", async (ev) => {
       switch (b.dataset.action) {
         case "add":
           addModal();
-          break;
-        case "add-by-content":
-          await createContentFirstIdea();
           break;
         case "suggest-title":
           await suggestTitleForIdea();

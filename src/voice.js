@@ -329,7 +329,13 @@ export function initVoice({
           target.getAttribute("aria-label") ||
           target.closest("label")?.firstChild?.textContent?.trim() ||
           "nội dung";
-        b.textContent = "🎙 Ghi âm";
+        if (target.id === "new-idea-content") {
+          b.textContent = "🎙";
+          b.classList.add("voice-icon-only");
+          b.title = "Ghi âm nội dung ý tưởng";
+        } else {
+          b.textContent = "🎙 Ghi âm";
+        }
         b.setAttribute("aria-label", `Ghi âm cho ${label}`);
         // Keep the selection before the button takes focus, including Safari touch interaction.
         let selection;

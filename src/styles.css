@@ -1581,3 +1581,15 @@ select:focus {
 .title-ai-tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
 .title-ai-tools button { color:var(--accent); font-size:0.73rem; padding:7px 10px; }
 .title-ai-tools small { color:var(--muted); font-size:0.67rem; }
+
+/* Single-step idea capture: title and body together. */
+#dialog { overflow-y: auto; }
+.idea-create-form .field { margin: 12px 0; }
+#new-idea-content { min-height: 155px; }
+.bulk-idea { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
+.bulk-idea summary { cursor: pointer; color: var(--muted); font-size: 0.82rem; }
+.voice-icon-only { width: 44px; height: 44px; min-height: 44px; padding: 6px; justify-content: center; font-size: 22px; line-height: 1; }
+@media (max-width: 600px) {
+  #dialog { padding: 16px; max-height: calc(100dvh - 24px); }
+  .idea-create-form .dialog-footer { margin-top: 12px; }
+}
