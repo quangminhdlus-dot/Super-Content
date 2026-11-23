@@ -22,6 +22,24 @@ async function utility(page, name) {
     .getByRole("button", { name: new RegExp(`^${name} \\(`) })
     .click();
 }
+test("voice-first idea saves its description without filling the title", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
+  await page.getByRole("button", { name: "Tạo ý tưởng bằng nội dung / ghi âm" }).click();
+  await expect(page.locator("#idea-content")).toBeVisible();
+  await expect(page.locator("#video-title")).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Ghi âm cho Tiêu đề/ })).toHaveCount(0);
+  await page.locator("#idea-content").fill("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
+  await expect(page.locator("#save-state")).toContainText("Đã lưu");
+  await page.getByRole("button", { name: "Danh sách", exact: true }).click();
+  await expect(page.locator(".video-row")).toContainText("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
+  await page.reload();
+  await page.locator(".video-main").first().click();
+  await expect(page.locator("#idea-content")).toHaveValue("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
+  await expect(page.locator("#video-title")).toHaveValue("");
+});
+
 test("full 20 → 7 workflow, stable IDs, script, offline persistence, archive and trash", async ({
   page,
   context,
