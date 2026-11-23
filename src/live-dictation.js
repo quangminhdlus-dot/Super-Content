@@ -126,6 +126,7 @@ export function createLiveDictation({
       error: "",
       startTimer: null,
       watchdog: null,
+      started: false,
     };
     // If a selection existed, replacing it with recognized text is intentional;
     // the empty preview doesn't erase the selection until the first result.
@@ -138,6 +139,7 @@ export function createLiveDictation({
     setStatus("Đang mở micro… Chữ sẽ xuất hiện ngay khi anh nói.");
     engine.onstart = () => {
       if (current !== s) return;
+      s.started = true;
       window.clearTimeout(s.startTimer);
       setStatus("Đang nghe… Anh có thể nói tiếng Việt.");
       // If Safari keeps its mic indicator active with no speech events, fail
@@ -200,7 +202,7 @@ export function createLiveDictation({
     try {
       // Must run synchronously inside the user's click gesture on iPhone.
       engine.start();
-      s.startTimer = window.setTimeout(() => {
+      if (!s.started) s.startTimer = window.setTimeout(() => {
         if (current === s) abort({
           reason: "Micro không khởi động trong 10 giây. Đã thoát an toàn; hãy thử lại.",
         });
