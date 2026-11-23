@@ -2117,3 +2117,30 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .reference-link { width:43px; height:43px; }
   .reference-remove { width:21px; height:21px; }
 }
+
+
+/* Embedded live dictation in idea textareas: no recording modal. */
+.voice-mic.dictation-active {
+  background:#0866ff;
+  color:#ffffff;
+  border-color:transparent;
+}
+.voice-mic.dictation-active:hover { background:#0759dd; }
+.live-dictation-status {
+  display:block;
+  min-height:0;
+  color:var(--accent-readable);
+  font-size:.72rem;
+  line-height:1.5;
+  margin-top:7px;
+}
+.live-dictation-status:empty { display:none; }
+.script-panel > .live-dictation-status { padding:0 18px; margin:10px 0 0; }
+#dialog .voice-icon-only.dictation-active {
+  font-size:20px;
+  background:#0866ff;
+  color:#ffffff;
+}
+@media (prefers-reduced-motion:reduce) {
+  .voice-mic.dictation-active { animation:none; }
+}
