@@ -52,6 +52,12 @@ async function setup(page, { mp4 = false } = {}) {
         start() {
           this.state = "recording";
         }
+        pause() {
+          if (this.state === "recording") this.state = "paused";
+        }
+        resume() {
+          if (this.state === "paused") this.state = "recording";
+        }
         stop() {
           if (this.state === "inactive") return;
           this.state = "inactive";
@@ -106,16 +112,22 @@ async function open(page) {
     .getByRole("button", { name: "Ghi âm cho Nội dung", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Dừng & nhận dạng", exact: true }),
+    page.getByRole("button", { name: "Gửi bản ghi", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Ghi lại", exact: true }),
   ).toBeHidden();
+  await page.getByRole("button", { name: "Tạm dừng" }).click();
+  await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "paused");
+  await expect(page.getByRole("button", { name: "Tiếp tục" })).toBeVisible();
+  expect(await page.evaluate(() => window.requests.length)).toBe(0);
+  await page.getByRole("button", { name: "Tiếp tục" }).click();
+  await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
 }
 async function record(page) {
   await open(page);
   await page
-    .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
+    .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
   await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
 }
@@ -167,7 +179,7 @@ test("network retries keep audio; polish failure keeps original without transcri
   });
   await open(page);
   await page
-    .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
+    .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
   await expect(page.locator("#voice-status")).toContainText(
     "Mất mạng thử nghiệm",
@@ -205,6 +217,14 @@ test("network retries keep audio; polish failure keeps original without transcri
     .click();
   await expect(page.locator("#target")).toHaveValue("ừ nội dung gốc");
 });
+test("delete X discards recording without sending or inserting it", async ({ page }) => {
+  await setup(page);
+  await open(page);
+  await page.getByRole("button", { name: "Xóa bản ghi" }).click();
+  await expect(page.locator("#voice-dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => window.requests.length)).toBe(0);
+  await expect(page.locator("#target")).toHaveValue("Đầu Cuối");
+});
 test("denied microphone, pending permission cancellation, automatic stop and concurrent edits are safe", async ({
   page,
 }) => {
@@ -237,6 +257,9 @@ test("denied microphone, pending permission cancellation, automatic stop and con
   await page.clock.install();
   await open(page);
   await page.clock.fastForward(600001);
+  await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "ready");
+  await expect(page.getByRole("button", { name: "Gửi bản ghi" })).toBeVisible();
+  await page.getByRole("button", { name: "Gửi bản ghi" }).click();
   await expect(page.locator("#voice-polished")).toHaveValue(
     "Nội dung rõ ràng.",
   );

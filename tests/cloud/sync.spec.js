@@ -159,22 +159,27 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await a
     .getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng", exact: true })
     .click();
-  await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toBeVisible();
+  await expect(a.getByRole("button", { name: "Gửi bản ghi" })).toBeVisible();
   await expect(a.getByRole("button", { name: "Ghi lại" })).toBeHidden();
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await expect(a.locator("#voice-clock")).toBeVisible();
-  await expect(a.locator("#voice-elapsed")).toHaveText(/^[0-2]:\d\d$/);
+  await expect(a.locator("#voice-elapsed")).toHaveText(/^\d{1,2}:\d{2}$/);
   await expect(a.locator("#voice-limit")).toHaveText("10:00");
   await expect(a.locator("#voice-dialog .voice-orbit")).toBeVisible();
   await expect(a.locator("#voice-dialog .voice-bars")).toHaveCount(2);
-  await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toHaveText("");
+  await expect(a.getByRole("button", { name: "Gửi bản ghi" })).toHaveText("");
   await expect(a.locator("#voice-status")).toBeHidden();
   // Wait for actual encoded data, not AudioContext time that may predate recording.
   await expect
     .poll(() => a.evaluate(() => window.voiceTestBytes))
     .toBeGreaterThan(0);
+  await a.getByRole("button", { name: "Tạm dừng" }).click();
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "paused");
+  await expect(a.getByRole("button", { name: "Tiếp tục" })).toBeVisible();
+  await a.getByRole("button", { name: "Tiếp tục" }).click();
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await a
-    .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
+    .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
   await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "review");
@@ -216,11 +221,14 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await expect(a.locator("#voice-limit")).toHaveText("10:00");
   await expect.poll(() => a.evaluate(() => window.voiceTestBytes)).toBeGreaterThan(beforeQuick);
-  await a.getByRole("button", { name: "Dừng & nhận dạng" }).click();
+  await a.getByRole("button", { name: "Gửi bản ghi" }).click();
   await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
   await expect(a.locator("#voice-dialog .voice-versions [data-voice=replace]")).toBeHidden();
-  await a.getByRole("button", { name: "Lưu ý tưởng", exact: true }).click();
   await expect.poll(() => server.size).toBe(2);
+  await expect(a.locator("#voice-status")).toContainText("Đã lưu vào Kho ý tưởng");
+  await expect(a.getByRole("button", { name: "Mở trong Kho ý tưởng" })).toBeVisible();
+  await expect(a.getByRole("button", { name: "Lưu vào kịch bản" })).toBeVisible();
+  await a.getByRole("button", { name: "Đóng ghi âm" }).click();
   await expect(a.locator(".page-heading h1")).toContainText("Kho ý tưởng");
   await expect(a.locator(".video-row")).toHaveCount(2);
   await expect(a.locator(".video-row").first()).toContainText("Thêm ý này.");
