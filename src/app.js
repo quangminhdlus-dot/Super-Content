@@ -62,11 +62,9 @@ document.body.append(quickIdeaBuffer);
 
 const voice = initVoice({
   onInserted: ({ target }) => {
+    // Recording in other fields still uses the AI dialog. Live dictation
+    // inside the idea editor does not submit the form automatically.
     if (target.id === "idea-content") void suggestTitleForIdea();
-    if (target.id === "new-idea-content") {
-      // A new idea recorded from the add form is also saved with one Send tap.
-      document.querySelector("#add-form")?.requestSubmit();
-    }
   },
   onQuickTranscript: async (text) => saveQuickRecordedIdea(text),
   onQuickPolished: async (id, original, polished) => {
