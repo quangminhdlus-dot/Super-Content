@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 
 const BACKGROUND = [11, 18, 32];
-const ACCENT = [101, 167, 255];
+const ACCENT = [8, 102, 255];
 
 function crc32(bytes) {
   let crc = 0xffffffff;
