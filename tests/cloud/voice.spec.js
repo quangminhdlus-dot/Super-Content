@@ -4,7 +4,7 @@ async function setup(page, { mp4 = false } = {}) {
   await page.route("**/voice-test", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<html lang="vi"><head><meta charset="utf-8"></head><body><label>Nội dung<textarea id="target">Đầu Cuối</textarea></label></body></html>',
+      body: '<html lang="vi"><head><meta charset="utf-8"></head><body><label>Tiêu đề<input id="video-title" value=""></label><label>Nội dung<textarea id="target">Đầu Cuối</textarea></label></body></html>',
     }),
   );
   await page.goto("./voice-test");
@@ -117,6 +117,13 @@ async function record(page) {
     .click();
   await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
 }
+test("voice recorder attaches to content, never to a title field", async ({ page }) => {
+  await setup(page);
+  await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /Ghi âm cho Tiêu đề/ })).toHaveCount(0);
+  await expect(page.locator("#video-title + .voice-mic")).toHaveCount(0);
+});
+
 for (const mp4 of [false, true])
   test(`review ${mp4 ? "Safari MP4" : "Chrome WebM"}, explicit insertion, cursor and cancellation`, async ({
     page,

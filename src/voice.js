@@ -12,6 +12,7 @@ export function initVoice({
   root = document.body,
   authorize = authorizeVoice,
   request = voiceRequest,
+  onInserted = () => {},
 } = {}) {
   const modal = document.createElement("dialog");
   modal.id = "voice-dialog";
@@ -267,6 +268,7 @@ export function initVoice({
       s.target.value = result.value;
       s.start = s.end = result.cursor;
       s.target.dispatchEvent(new Event("input", { bubbles: true }));
+      try { onInserted({ target: s.target, value: result.value }); } catch {}
       close();
     }
   });
@@ -287,7 +289,7 @@ export function initVoice({
   });
   function attach() {
     root
-      .querySelectorAll("textarea:not([readonly]), #video-title")
+      .querySelectorAll("textarea:not([readonly]):not([name=titles])")
       .forEach((target) => {
         if (target.closest("#voice-dialog") || target.dataset.voiceBound)
           return;
@@ -298,7 +300,7 @@ export function initVoice({
         const label =
           target.getAttribute("aria-label") ||
           target.closest("label")?.firstChild?.textContent?.trim() ||
-          (target.id === "video-title" ? "Tiêu đề video" : "nội dung");
+          "nội dung";
         b.textContent = "🎙 Ghi âm";
         b.setAttribute("aria-label", `Ghi âm cho ${label}`);
         // Keep the selection before the button takes focus, including Safari touch interaction.
@@ -320,7 +322,7 @@ export function initVoice({
           open(target);
         });
         const toolbar =
-          target.id === "script"
+          ["script", "idea-content"].includes(target.id)
             ? target.parentElement.querySelector(".script-toolbar")
             : null;
         if (toolbar) toolbar.append(b);

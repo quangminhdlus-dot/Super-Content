@@ -16,6 +16,7 @@ import { cloud, fetchVideos, saveVideo } from "./cloud.js";
 import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
 import { initVoice } from "./voice.js";
+import { voiceRequest } from "./voice-client.js";
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#dialog");
 const paths = {
@@ -44,7 +45,11 @@ const e = (s) =>
         c
       ],
   );
-const voice = initVoice();
+const voice = initVoice({
+  onInserted: ({ target }) => {
+    if (target.id === "idea-content") void suggestTitleForIdea();
+  },
+});
 let user = null,
   scope = "demo",
   records = [],
@@ -145,10 +150,10 @@ function renderRows() {
     ? list
         .map(
           (v) =>
-            `<article class="video-row ${selected.has(v.id) ? "selected" : ""}"><label class="row-selector"><input type="checkbox" class="row-check" data-id="${v.id}" aria-label="Chọn ${e(v.title)}" ${selected.has(v.id) ? "checked" : ""}></label><button class="video-main" data-open="${v.id}"><strong>${e(v.title)}</strong><span>${date(v.created_at)} <i>·</i> ${e(v.notes?.slice(0, 90) || "Chưa có ghi chú")}${v.stage === "published" ? ` <i>·</i> Đăng ${date(v.published_at)}` : ""}</span></button><span class="tag ${v.script ? "ready" : ""}">${view === "script" ? (v.script ? "Đang viết" : "Chưa viết") : e(LABELS[STAGES.indexOf(v.stage)])}</span><button class="icon-button" data-open="${v.id}" aria-label="Mở ${e(v.title)}">${icon("arrow")}</button></article>`,
+            `<article class="video-row ${selected.has(v.id) ? "selected" : ""}"><label class="row-selector"><input type="checkbox" class="row-check" data-id="${v.id}" aria-label="Chọn ${e(v.title)}" ${selected.has(v.id) ? "checked" : ""}></label><button class="video-main" data-open="${v.id}"><strong>${e(v.title || "Ý tưởng chưa có tiêu đề")}</strong><span>${date(v.created_at)} <i>·</i> ${e((v.notes || v.script)?.slice(0, 90) || "Chưa có nội dung")}${v.stage === "published" ? ` <i>·</i> Đăng ${date(v.published_at)}` : ""}</span></button><span class="tag ${v.script ? "ready" : ""}">${view === "script" ? (v.script ? "Đang viết" : "Chưa viết") : e(LABELS[STAGES.indexOf(v.stage)])}</span><button class="icon-button" data-open="${v.id}" aria-label="Mở ${e(v.title)}">${icon("arrow")}</button></article>`,
         )
         .join("")
-    : `<div class="empty"><span class="empty-icon">${icon(view)}</span><h2>${search ? "Không tìm thấy nội dung" : "Chưa có video ở đây"}</h2><p>${search ? "Thử tìm bằng từ khóa khác." : view === "ideas" ? "Thêm một tiêu đề hoặc dán nhiều dòng để bắt đầu." : "Video sẽ xuất hiện khi bạn chuyển đến công đoạn này."}</p>${view === "ideas" && !search ? '<button class="primary" data-action="add">+ Thêm ý tưởng đầu tiên</button>' : ""}</div>`;
+    : `<div class="empty"><span class="empty-icon">${icon(view)}</span><h2>${search ? "Không tìm thấy nội dung" : "Chưa có video ở đây"}</h2><p>${search ? "Thử tìm bằng từ khóa khác." : view === "ideas" ? "Ghi lại nội dung ý tưởng; AI có thể gợi ý tiêu đề sau." : "Video sẽ xuất hiện khi bạn chuyển đến công đoạn này."}</p>${view === "ideas" && !search ? '<button class="primary" data-action="add">+ Thêm ý tưởng đầu tiên</button>' : ""}</div>`;
   document.querySelector("#result-count").textContent = `${list.length} video`;
   const all = document.querySelector("#select-all");
   all.checked = list.length > 0 && list.every((v) => selected.has(v.id));
@@ -270,7 +275,7 @@ function modal(html) {
 function addModal() {
   modal({
     title: "Thêm ý tưởng",
-    body: `<p class="muted">Mỗi dòng là một tiêu đề. Bạn có thể dán cả danh sách.</p><form id="add-form"><label class="field">Tiêu đề video<textarea name="titles" rows="8" autofocus required placeholder="Một ý tưởng mới…\nMột câu chuyện đáng kể…"></textarea></label><div id="duplicates"></div><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Thêm vào kho ý tưởng ${icon("plus")}</button></div></form>`,
+    body: `<p class="muted">Muốn nói ra ý tưởng trước? Tạo ý tưởng mới, ghi âm vào phần nội dung và AI sẽ đề xuất tiêu đề khi bạn chưa đặt tên.</p><button type="button" class="primary" data-action="add-by-content">Tạo ý tưởng bằng nội dung / ghi âm</button><p class="muted">Hoặc nhập nhiều tiêu đề, mỗi dòng một ý tưởng:</p><form id="add-form"><label class="field">Tiêu đề video<textarea name="titles" rows="8" autofocus required placeholder="Một ý tưởng mới…\nMột câu chuyện đáng kể…"></textarea></label><div id="duplicates"></div><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Thêm vào kho ý tưởng ${icon("plus")}</button></div></form>`,
   });
   let reviewed = false;
   dialog.querySelector("#add-form").onsubmit = async (ev) => {
@@ -311,13 +316,28 @@ function addModal() {
     }
   };
 }
+async function createContentFirstIdea() {
+  const video = createVideo("", user?.id);
+  await enqueue(video.id, () => video);
+  if (dialog.open) dialog.close();
+  view = "ideas";
+  editing = video.id;
+  render();
+  scheduleSync();
+  document.querySelector("#idea-content")?.focus();
+}
+
 function editorHTML() {
   const v = videos().find((x) => x.id === editing);
   if (!v) {
     editing = null;
     return listHTML();
   }
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề video"></div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>Nội dung kịch bản</h2><span id="word-count">${v.script.trim() ? v.script.trim().split(/\s+/).length : 0} từ</span></div><textarea id="script" data-field="script" placeholder="Bắt đầu câu chuyện của bạn…" aria-label="Nội dung kịch bản">${e(v.script)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  const isIdea = v.stage === "ideas";
+  const primaryField = isIdea ? "notes" : "script";
+  const primaryId = isIdea ? "idea-content" : "script";
+  const primaryText = v[primaryField] || "";
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Gợi ý tiêu đề từ nội dung</button><small id="title-suggestion-status" role="status"></small></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -329,7 +349,7 @@ function bindEditor() {
         key = input.dataset.field,
         value = input.value;
       document.querySelector("#save-state").textContent = "Đang lưu…";
-      if (key === "script")
+      if (input.id === "script" || input.id === "idea-content")
         document.querySelector("#word-count").textContent =
           `${value.trim() ? value.trim().split(/\s+/).length : 0} từ`;
       enqueue(id, {
@@ -357,6 +377,50 @@ function bindEditor() {
     }),
   );
 }
+function moveAccidentalTitleToContent() {
+  const title = document.querySelector("#video-title");
+  const content = document.querySelector("#idea-content");
+  if (!title?.value.trim() || !content || content.value.trim()) return;
+  if (!window.confirm("Chuyển toàn bộ tiêu đề hiện tại xuống Nội dung ý tưởng, rồi để AI gợi ý một tiêu đề ngắn hơn?")) return;
+  content.value = title.value.trim();
+  title.value = "";
+  title.dispatchEvent(new Event("input", { bubbles: true }));
+  content.dispatchEvent(new Event("input", { bubbles: true }));
+  void suggestTitleForIdea();
+}
+
+let titleSuggestionSequence = 0;
+async function suggestTitleForIdea() {
+  const id = editing;
+  const target = document.querySelector("#idea-content");
+  const titleInput = document.querySelector("#video-title");
+  const status = document.querySelector("#title-suggestion-status");
+  if (!id || !target || !titleInput || titleInput.value.trim()) return;
+  const content = target.value.trim();
+  if (!content) {
+    if (status) status.textContent = "Hãy nhập hoặc ghi âm nội dung ý tưởng trước.";
+    return;
+  }
+  const sequence = ++titleSuggestionSequence;
+  if (status) status.textContent = "Đang đề xuất tiêu đề…";
+  try {
+    const suggestion = await voiceRequest("title", content, new AbortController().signal);
+    if (
+      sequence !== titleSuggestionSequence ||
+      editing !== id ||
+      document.querySelector("#idea-content")?.value.trim() !== content ||
+      titleInput !== document.querySelector("#video-title") ||
+      titleInput.value.trim()
+    ) return;
+    titleInput.value = suggestion;
+    titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+    if (status) status.textContent = "Đã gợi ý tiêu đề. Anh có thể chỉnh sửa.";
+  } catch {
+    if (status?.isConnected && editing === id)
+      status.textContent = "Chưa gợi ý được tiêu đề. Nội dung đã được giữ; bấm để thử lại.";
+  }
+}
+
 async function showProvenance() {
   const video = videos().find((v) => v.id === editing);
   if (!video) return;
@@ -590,6 +654,15 @@ document.addEventListener("click", async (ev) => {
       switch (b.dataset.action) {
         case "add":
           addModal();
+          break;
+        case "add-by-content":
+          await createContentFirstIdea();
+          break;
+        case "suggest-title":
+          await suggestTitleForIdea();
+          break;
+        case "move-title-to-content":
+          moveAccidentalTitleToContent();
           break;
         case "settings":
           settings();
