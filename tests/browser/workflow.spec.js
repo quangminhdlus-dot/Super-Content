@@ -231,9 +231,10 @@ test("full 20 → 7 workflow, stable IDs, script, offline persistence, archive a
     "Mở đầu — một câu chuyện.\n" +
     "Kịch bản dài cần được giữ nguyên. ".repeat(200);
   await page.locator("#script").fill(script);
-  await page
-    .locator("[data-field=source_url]")
-    .fill("https://youtube.com/watch?v=example");
+  await page.getByRole("button", { name: "Thêm nguồn tham khảo" }).click();
+  await page.locator("#reference-input").fill("https://youtube.com/watch?v=example");
+  await page.locator("#reference-entry").getByRole("button", { name: "Thêm", exact: true }).click();
+  await expect(page.locator(".reference-link")).toHaveCount(1);
   await page.locator("[data-field=notes]").fill("Luận điểm cần giữ");
   await expect(page.locator("#save-state")).toContainText("Đã lưu");
   const cursor = await page.locator("#script").evaluate((el) => {

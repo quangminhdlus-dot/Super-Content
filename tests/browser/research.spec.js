@@ -123,9 +123,7 @@ test("research settings persist; proposals remain separate and selected imports 
     .click();
   await expect(page.locator(".video-row")).toHaveCount(2);
   await page.locator(".video-main").first().click();
-  await expect(page.locator("[data-field=source_url]")).toHaveValue(
-    /youtube.com/,
-  );
+  await expect(page.locator(".reference-link[href*='youtube.com']")).toHaveCount(1);
   await expect(page.locator(".research-provenance")).toContainText(
     "Bổ sung dữ liệu thực tế riêng.",
   );

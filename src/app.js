@@ -17,6 +17,7 @@ import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
 import { initVoice } from "./voice.js";
 import { voiceRequest } from "./voice-client.js";
+import { parseReferenceLinks, referenceKind, addReferenceLinks, removeReferenceLink } from "./reference-links.js";
 import { mergeCloudVideo, sameVideoContent } from "./sync-merge.js";
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#dialog");
@@ -37,6 +38,8 @@ const paths = {
   close: "M6 6l12 12 M6 18L18 6",
   utilities: "M4 6h16v12H4z M4 10h16 M10 14h4",
   mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z M5 11a7 7 0 0 0 14 0 M12 18v4 M8 22h8",
+  external: "M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.7 1.7 M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.7-1.7",
+  document: "M6 2h8l4 4v16H6z M14 2v5h5 M9 12h6 M9 16h6",
 };
 const icon = (n) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[n] || paths.script}"/></svg>`;
@@ -470,6 +473,82 @@ async function suggestNewIdeaTitle(id, content) {
   }
 }
 
+function referenceGlyph(url) {
+  const kind = referenceKind(url);
+  if (kind === "youtube")
+    return '<svg class="reference-youtube" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4.5" width="20" height="15" rx="4" fill="#ff0033"/><path d="M10 8.3 16.4 12 10 15.7z" fill="#ffffff"/></svg>';
+  if (kind === "video") return icon("published");
+  if (kind === "document") return icon("document");
+  return icon("external");
+}
+function referenceChips(raw) {
+  return parseReferenceLinks(raw).map((url, index) => {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return '<span class="reference-chip">' +
+      '<a class="reference-link" href="' + e(url) +
+      '" target="_blank" rel="noopener noreferrer" title="' + e(url) +
+      '" aria-label="Mở nguồn tham khảo ' + (index + 1) + ': ' + e(host) + '">' +
+      referenceGlyph(url) + '</a>' +
+      '<button class="reference-remove" type="button" data-action="reference-remove" data-reference-index="' +
+      index + '" aria-label="Xóa liên kết tham khảo ' + (index + 1) +
+      '" title="Xóa liên kết">' + icon("close") + '</button></span>';
+  }).join("");
+}
+function referenceEditor(value) {
+  return '<section class="reference-section">' +
+    '<div class="reference-heading"><span>Nguồn tham khảo</span>' +
+    '<button type="button" class="reference-add-toggle" data-action="reference-toggle" title="Thêm nguồn tham khảo" aria-label="Thêm nguồn tham khảo" aria-expanded="false">' +
+    icon("plus") + '</button></div>' +
+    '<div class="reference-links" aria-label="Danh sách nguồn tham khảo">' +
+    referenceChips(value) + '</div>' +
+    '<div class="reference-entry" id="reference-entry" hidden>' +
+    '<label class="sr-only" for="reference-input">Đường dẫn mới, mỗi dòng một liên kết</label>' +
+    '<textarea id="reference-input" rows="2" placeholder="Dán liên kết; mỗi dòng một nguồn" spellcheck="false"></textarea>' +
+    '<div class="reference-entry-actions"><button type="button" class="primary" data-action="reference-add">Thêm</button>' +
+    '<button type="button" data-action="reference-toggle">Hủy</button></div>' +
+    '<small class="reference-feedback" id="reference-feedback" role="status"></small></div>' +
+    '</section>';
+}
+function refreshReferenceChips(value) {
+  const chips = document.querySelector(".reference-links");
+  if (chips) chips.innerHTML = referenceChips(value);
+}
+async function updateReferences(value) {
+  const id = editing;
+  if (!id) return;
+  await enqueue(id, (video) => ({ ...video, source_url: value }));
+  if (editing !== id) return;
+  refreshReferenceChips(value);
+  const state = document.querySelector("#save-state");
+  if (state) state.textContent = user
+    ? "Đã lưu trên thiết bị · Chờ đồng bộ" : "Đã lưu trên thiết bị";
+  scheduleSync();
+}
+async function appendReferences() {
+  const input = document.querySelector("#reference-input");
+  const feedback = document.querySelector("#reference-feedback");
+  const current = videos().find((v) => v.id === editing);
+  if (!current || !input) return;
+  try {
+    const value = addReferenceLinks(current.source_url, input.value);
+    await updateReferences(value);
+    if (!input.isConnected) return;
+    input.value = "";
+    if (feedback) feedback.textContent = "Đã lưu nguồn tham khảo.";
+    const entry = document.querySelector("#reference-entry");
+    if (entry) entry.hidden = true;
+    const toggle = document.querySelector(".reference-add-toggle");
+    toggle?.setAttribute("aria-expanded", "false");
+  } catch (error) {
+    if (feedback) feedback.textContent = error.message || "Chưa thêm được liên kết.";
+  }
+}
+async function deleteReference(index) {
+  const current = videos().find((v) => v.id === editing);
+  if (!current) return;
+  await updateReferences(removeReferenceLink(current.source_url, index));
+}
+
 function editorHTML() {
   const v = videos().find((x) => x.id === editing);
   if (!v) {
@@ -480,12 +559,19 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin video</h2>${field("Nguồn tham khảo", "source_url", v.source_url, "url")}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}${field("Ghi chú hậu kỳ", "postproduction_notes", v.postproduction_notes, "textarea")}${field("Liên kết bản dựng", "draft_url", v.draft_url, "url")}${field("Đường dẫn YouTube", "youtube_url", v.youtube_url, "url")}${field("Ngày xuất bản", "published_at", v.published_at?.slice(0, 10) || "", "date")}<small>Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
 }
 function bindEditor() {
+  const referenceInput = document.querySelector("#reference-input");
+  referenceInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      document.querySelector('[data-action="reference-add"]')?.click();
+    }
+  });
   app.querySelectorAll("[data-field]").forEach((input) =>
     input.addEventListener("input", () => {
       const id = editing,
@@ -914,6 +1000,21 @@ document.addEventListener("click", async (ev) => {
           voice.open(scratch, { quick: true });
           break;
         }
+        case "reference-toggle": {
+          const entry = document.querySelector("#reference-entry");
+          if (entry) {
+            entry.hidden = !entry.hidden;
+            document.querySelector(".reference-add-toggle")?.setAttribute("aria-expanded", String(!entry.hidden));
+            if (!entry.hidden) document.querySelector("#reference-input")?.focus();
+          }
+          break;
+        }
+        case "reference-add":
+          await appendReferences();
+          break;
+        case "reference-remove":
+          await deleteReference(Number(b.dataset.referenceIndex));
+          break;
         case "suggest-title":
           await suggestTitleForIdea({ manual: true });
           break;
