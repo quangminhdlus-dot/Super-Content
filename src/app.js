@@ -17,6 +17,7 @@ import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
 import { initVoice } from "./voice.js";
 import { voiceRequest } from "./voice-client.js";
+import { mergeCloudVideo, sameVideoContent } from "./sync-merge.js";
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#dialog");
 const paths = {
@@ -164,11 +165,14 @@ function updateStatus() {
     .forEach((el) => (el.textContent = message));
   const notice = document.querySelector(".local-notice");
   if (notice) {
-    // Routine sync stays out of the workspace; alert only on failed sync or conflicts.
-    notice.hidden = !user || (
-      !records.some((record) => record.conflict) &&
-      !syncMessage.startsWith("Chưa đồng bộ")
-    );
+    const hasConflict = records.some((r) => r.conflict);
+    const failed = syncMessage.startsWith("Chưa đồng bộ");
+    notice.hidden = !user || (!hasConflict && !failed);
+    const action = notice.querySelector("button");
+    if (action) {
+      action.dataset.action = hasConflict ? "conflicts" : "sync";
+      action.textContent = hasConflict ? "Xem chi tiết" : "Thử lại";
+    }
   }
 }
 initResearch({
@@ -181,7 +185,7 @@ initResearch({
   },
 });
 function render() {
-  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" hidden><span data-status>${e(status())}</span><button data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><button class="quick-record-button" type="button" data-action="quick-record" aria-label="Ghi ý tưởng nhanh" title="Ghi ý tưởng nhanh">${icon("mic")}</button><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
+  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research" aria-label="Nghiên cứu">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" role="status" hidden><span data-status>${e(status())}</span><button type="button" data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><button class="quick-record-button" type="button" data-action="quick-record" aria-label="Ghi ý tưởng nhanh" title="Ghi ý tưởng nhanh">${icon("mic")}</button><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
   if (view === "research") showResearch(document.querySelector("#content"));
   else if (!editing) renderRows();
   else {
@@ -222,7 +226,7 @@ function renderSelection() {
   const n = selected.size,
     i = STAGES.indexOf(view);
   const quickButton = document.querySelector(".quick-record-button");
-  if (quickButton) quickButton.hidden = n > 0;
+  if (quickButton) quickButton.hidden = view !== "ideas" || !!editing || n > 0;
   bar.innerHTML =
     n && !editing && view !== "research"
       ? `<div class="selection-bar"><span><b>${n}</b> đã chọn</span><button data-action="deselect">Bỏ chọn</button><div class="selection-actions">${i > 0 ? `<button data-move="${STAGES[i - 1]}" aria-label="Về ${LABELS[i - 1]}">${icon("back")} ${LABELS[i - 1]}</button>` : ""}${i >= 0 && i < 4 ? `<button class="primary" data-move="${STAGES[i + 1]}">${i === 2 ? "Đã quay xong → Hoàn thiện" : `Chuyển sang ${LABELS[i + 1]}`} ${icon("arrow")}</button>` : ""}${view === "archive" || view === "trash" ? '<button class="primary" data-action="restore">Khôi phục</button>' : `<button data-action="archive">${icon("archive")} Lưu trữ</button>`}${view === "trash" ? '<button class="danger" data-action="purge">Xóa vĩnh viễn</button>' : `<button class="danger" data-action="delete">${icon("trash")} Xóa</button>`}</div></div>`
@@ -605,7 +609,7 @@ function settings() {
       .filter((r) => r.conflict)
       .map(
         (r) =>
-          `<section class="settings-section"><h3>Xung đột: ${e(r.video.title)}</h3><p>Bản trên thiết bị vẫn được giữ. Hãy tải bản sao trước khi chọn phiên bản.</p><button data-conflict="${r.video.id}" data-choice="local">Giữ bản thiết bị</button><button data-conflict="${r.video.id}" data-choice="remote">Dùng bản máy chủ</button></section>`,
+          `<section class="settings-section conflict-section"><h3>Xung đột: ${e(r.video.title || "Ý tưởng chưa có tiêu đề")}</h3><p>Hai bản có nội dung khác nhau. Bản trên iPhone vẫn được giữ; hãy tải bản sao trước khi chọn.</p><details class="conflict-preview"><summary>Xem hai phiên bản</summary><div class="conflict-compare"><div><strong>Trên iPhone</strong><p>${e((r.video.notes || r.video.script || "Trống").slice(0, 700))}</p></div><div><strong>Trên máy chủ</strong><p>${e((r.conflict.notes || r.conflict.script || "Trống").slice(0, 700))}</p></div></div></details><div class="conflict-actions"><button data-conflict="${r.video.id}" data-choice="local">Giữ bản thiết bị</button><button data-conflict="${r.video.id}" data-choice="remote">Dùng bản máy chủ</button></div></section>`,
       )
       .join(
         "",
@@ -658,20 +662,35 @@ async function sync() {
       if (!remote) {
         const remotes = await fetchVideos(),
           other = remotes.find((v) => v.id === record.video.id);
-        await db.mutate(scope, record.video.id, (current) => ({
-          ...current,
-          conflict: other || {
+        await db.mutate(scope, record.video.id, (current) => {
+          if (!current) return current;
+          const serverCopy = other || {
             ...record.video,
             purged_at: new Date().toISOString(),
-          },
-        }));
+          };
+          const merged = other && mergeCloudVideo(current.video, current.base, other);
+          if (!merged) {
+            // A genuine conflicting edit needs a human choice; never drop either copy.
+            return { ...current, conflict: serverCopy };
+          }
+          const equal = sameVideoContent(merged, other);
+          return {
+            ...current,
+            video: { ...merged, revision: other.revision },
+            base: other,
+            dirty: !equal,
+            conflict: null,
+            token: crypto.randomUUID(),
+          };
+        });
         continue;
       }
       await db.mutate(scope, record.video.id, (current) =>
         current.token === record.token
-          ? { ...current, video: remote, dirty: false, conflict: null }
+          ? { ...current, video: remote, base: remote, dirty: false, conflict: null }
           : {
               ...current,
+              base: remote,
               video: { ...current.video, revision: remote.revision },
             },
       );
@@ -685,10 +704,11 @@ async function sync() {
           current &&
           current.video.revision !== video.revision)
           ? current
-          : { video, dirty: false, token: crypto.randomUUID() },
+          : { video, base: video, dirty: false, conflict: null, token: crypto.randomUUID() },
       );
     await reload();
     syncMessage = "";
+    if (records.some((r) => r.dirty && !r.conflict)) scheduleSync();
     // A sync may finish seconds after recording starts. Never redraw its active form.
     if (!editing && !dialog.open && view !== "research" && !voice.isActive()) render();
     else updateStatus();
@@ -780,10 +800,11 @@ document.addEventListener("click", async (ev) => {
         return;
       await db.mutate(scope, id, (r) =>
         choice === "remote"
-          ? { ...r, video: r.conflict, dirty: false, conflict: null }
+          ? { ...r, video: r.conflict, base: r.conflict, dirty: false, conflict: null }
           : {
               ...r,
               video: { ...r.video, revision: r.conflict.revision },
+              base: r.conflict,
               conflict: null,
               dirty: true,
               token: crypto.randomUUID(),
@@ -840,6 +861,10 @@ document.addEventListener("click", async (ev) => {
         case "sync":
           await sync();
           toast(status());
+          break;
+        case "conflicts":
+          settings();
+          dialog.querySelector("[data-conflict]")?.closest(".settings-section")?.scrollIntoView({ block: "start" });
           break;
         case "export":
           await exportData();
