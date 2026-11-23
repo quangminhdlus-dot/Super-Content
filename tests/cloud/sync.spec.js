@@ -164,7 +164,7 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await expect(a.locator("#voice-clock")).toBeVisible();
   await expect(a.locator("#voice-elapsed")).toHaveText(/^[0-2]:\d\d$/);
-  await expect(a.locator("#voice-limit")).toHaveText("2:00");
+  await expect(a.locator("#voice-limit")).toHaveText("10:00");
   await expect(a.locator("#voice-dialog .voice-orbit")).toBeVisible();
   await expect(a.locator("#voice-dialog .voice-bars")).toHaveCount(2);
   await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toHaveText("");
@@ -202,6 +202,20 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   expect(await a.locator("#idea-content").evaluate((el) => el.selectionStart)).toBe(
     12,
   );
+  // One-tap microphone creates an entirely new idea without opening the add form.
+  const beforeQuick = await a.evaluate(() => window.voiceTestBytes);
+  await a.getByRole("button", { name: "Ghi ý tưởng nhanh" }).click();
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
+  await expect(a.locator("#voice-limit")).toHaveText("10:00");
+  await expect.poll(() => a.evaluate(() => window.voiceTestBytes)).toBeGreaterThan(beforeQuick);
+  await a.getByRole("button", { name: "Dừng & nhận dạng" }).click();
+  await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
+  await expect(a.locator("#voice-dialog .voice-versions [data-voice=replace]")).toBeHidden();
+  await a.getByRole("button", { name: "Lưu ý tưởng", exact: true }).click();
+  await expect.poll(() => server.size).toBe(2);
+  await expect(a.locator(".page-heading h1")).toContainText("Kho ý tưởng");
+  await expect(a.locator(".video-row")).toHaveCount(2);
+  await expect(a.locator(".video-row")).toContainText("Thêm ý này.");
   await a.evaluate(() => window.voiceTestAudio.close());
   await a.reload();
   await a.locator(".video-main").click();

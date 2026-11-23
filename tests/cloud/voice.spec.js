@@ -236,7 +236,7 @@ test("denied microphone, pending permission cancellation, automatic stop and con
     .toBeGreaterThan(0);
   await page.clock.install();
   await open(page);
-  await page.clock.fastForward(120001);
+  await page.clock.fastForward(600001);
   await expect(page.locator("#voice-polished")).toHaveValue(
     "Nội dung rõ ràng.",
   );

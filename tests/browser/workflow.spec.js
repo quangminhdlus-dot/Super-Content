@@ -43,6 +43,20 @@ test("new idea saves content without a title; microphone is icon-only on mobile"
   await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng" })).toBeVisible();
 });
 
+test("floating microphone is directly above the mobile navigation and needs login for AI", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  const fab = page.getByRole("button", { name: "Ghi ý tưởng nhanh" });
+  await expect(fab).toBeVisible();
+  const nav = await page.locator(".mobile-nav").boundingBox();
+  const mic = await fab.boundingBox();
+  expect(mic.y + mic.height).toBeLessThanOrEqual(nav.y + 3);
+  await fab.click();
+  await expect(page.getByRole("heading", { name: "Cài đặt" })).toBeVisible();
+  await page.locator("#dialog [data-action=close]").click();
+  await stage(page, "Kịch bản").click();
+  await expect(fab).toBeVisible();
+});
 test("new idea saves title and content together in one submission", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();

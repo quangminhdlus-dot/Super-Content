@@ -35,6 +35,7 @@ const paths = {
   check: "M5 12l4 4L19 6",
   close: "M6 6l12 12 M6 18L18 6",
   utilities: "M4 6h16v12H4z M4 10h16 M10 14h4",
+  mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z M5 11a7 7 0 0 0 14 0 M12 18v4 M8 22h8",
 };
 const icon = (n) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[n] || paths.script}"/></svg>`;
@@ -49,6 +50,7 @@ const e = (s) =>
 const voice = initVoice({
   onInserted: ({ target }) => {
     if (target.id === "idea-content") void suggestTitleForIdea();
+    if (target.id === "quick-idea-content") void saveQuickRecordedIdea(target.value);
   },
 });
 let user = null,
@@ -136,7 +138,7 @@ initResearch({
   },
 });
 function render() {
-  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" hidden><span data-status>${e(status())}</span><button data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
+  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" hidden><span data-status>${e(status())}</span><button data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><textarea id="quick-idea-content" class="quick-idea-buffer" aria-hidden="true" tabindex="-1" data-voice-bound="true"></textarea><button class="quick-record-button" type="button" data-action="quick-record" aria-label="Ghi ý tưởng nhanh" title="Ghi ý tưởng nhanh">${icon("mic")}</button><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
   if (view === "research") showResearch(document.querySelector("#content"));
   else if (!editing) renderRows();
   else {
@@ -176,6 +178,8 @@ function renderSelection() {
   if (!bar) return;
   const n = selected.size,
     i = STAGES.indexOf(view);
+  const quickButton = document.querySelector(".quick-record-button");
+  if (quickButton) quickButton.hidden = n > 0;
   bar.innerHTML =
     n && !editing && view !== "research"
       ? `<div class="selection-bar"><span><b>${n}</b> đã chọn</span><button data-action="deselect">Bỏ chọn</button><div class="selection-actions">${i > 0 ? `<button data-move="${STAGES[i - 1]}" aria-label="Về ${LABELS[i - 1]}">${icon("back")} ${LABELS[i - 1]}</button>` : ""}${i >= 0 && i < 4 ? `<button class="primary" data-move="${STAGES[i + 1]}">${i === 2 ? "Đã quay xong → Hoàn thiện" : `Chuyển sang ${LABELS[i + 1]}`} ${icon("arrow")}</button>` : ""}${view === "archive" || view === "trash" ? '<button class="primary" data-action="restore">Khôi phục</button>' : `<button data-action="archive">${icon("archive")} Lưu trữ</button>`}${view === "trash" ? '<button class="danger" data-action="purge">Xóa vĩnh viễn</button>' : `<button class="danger" data-action="delete">${icon("trash")} Xóa</button>`}</div></div>`
@@ -378,6 +382,32 @@ function addModal() {
       form.querySelector("[type=submit]").disabled = false;
     }
   };
+}
+
+// Save a voice-captured idea directly into the idea inbox after user confirmation.
+async function saveQuickRecordedIdea(value) {
+  const content = value.trim();
+  if (!content) return;
+  const video = { ...createVideo("", user?.id), notes: content };
+  try {
+    await enqueue(video.id, () => video);
+    editing = null;
+    selected.clear();
+    search = "";
+    view = "ideas";
+    render();
+    scheduleSync();
+    toast("Đã lưu ý tưởng từ ghi âm");
+    void suggestNewIdeaTitle(video.id, content);
+  } catch {
+    editing = null;
+    view = "ideas";
+    render();
+    addModal();
+    const field = dialog.querySelector("#new-idea-content");
+    if (field) field.value = content;
+    toast("Chưa lưu được. Nội dung đã được giữ trong biểu mẫu để anh thử lại.");
+  }
 }
 
 // Suggest a title after saving the content; do not block the creation flow.
@@ -729,6 +759,18 @@ document.addEventListener("click", async (ev) => {
         case "add":
           addModal();
           break;
+        case "quick-record": {
+          if (!user) {
+            settings();
+            toast("Đăng nhập trong Cài đặt để ghi ý tưởng bằng AI.");
+            break;
+          }
+          const scratch = document.querySelector("#quick-idea-content");
+          if (!scratch) break;
+          scratch.value = "";
+          voice.open(scratch, { quick: true });
+          break;
+        }
         case "suggest-title":
           await suggestTitleForIdea();
           break;

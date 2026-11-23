@@ -1782,3 +1782,36 @@ body {
   .research-shortcut { margin-left: 0; margin-right: 0; }
   .research-shortcut span { display: none; }
 }
+
+
+/* One-tap idea capture immediately above the five-stage mobile navigation. */
+.quick-record-button,
+.quick-idea-buffer { display: none; }
+.quick-record-button[hidden] { display: none !important; }
+@media (max-width: 800px) {
+  .quick-record-button {
+    display: grid;
+    position: fixed;
+    z-index: 24;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    right: 22px;
+    width: 66px;
+    height: 66px;
+    min-height: 66px;
+    padding: 0;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #ffad71;
+    color: #15100a;
+    box-shadow: 0 8px 26px #0008, 0 0 0 5px #ff7a1a1c;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .quick-record-button svg {
+    width: 31px;
+    height: 31px;
+    stroke-width: 1.9;
+  }
+  .quick-record-button:hover { background: #ff9443; border-color: #ffbb8b; }
+  .quick-record-button:active { transform: scale(.95); }
+}

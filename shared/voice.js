@@ -1,6 +1,6 @@
 // Each recording is a complete container, never an arbitrary MediaRecorder timeslice.
 export const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
-export const MAX_RECORDING_MS = 120000;
+export const MAX_RECORDING_MS = 600000;
 export const MAX_TRANSCRIPT_CHARS = 20000;
 export const AUDIO_TYPES = {
   "audio/webm": "webm",

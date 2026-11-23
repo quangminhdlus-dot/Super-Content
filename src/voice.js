@@ -114,13 +114,13 @@ export function initVoice({
     q("#voice-original").value = q("#voice-polished").value = "";
     if (modal.open) modal.close();
     modal.remove();
-    if (s?.target.isConnected) {
+    if (s?.target.isConnected && s.target.id !== "quick-idea-content") {
       s.target.focus();
       s.target.setSelectionRange(s.start, s.end);
       s.target.scrollTop = s.scroll;
     }
   }
-  async function open(target) {
+  async function open(target, { quick = false } = {}) {
     if (session) close();
     const s = {
       target,
@@ -132,8 +132,11 @@ export function initVoice({
       chunks: [],
       original: "",
       polished: "",
+      quick,
     };
     session = s;
+    button("insert").textContent = quick ? "Lưu ý tưởng" : "Chèn tại con trỏ";
+    button("replace").hidden = quick;
     q(".voice-versions").hidden = true;
     q("#voice-version").value = "original";
     q("#voice-version option[value=polished]").disabled = true;
@@ -430,5 +433,5 @@ export function initVoice({
   }
   attach();
   observer.observe(root, { childList: true, subtree: true });
-  return { cancel: close };
+  return { cancel: close, open };
 }
