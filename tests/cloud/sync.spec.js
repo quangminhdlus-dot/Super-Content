@@ -158,6 +158,7 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
       stop() { this.onend?.(); }
       abort() { this.onend?.(); }
     };
+    window.SpeechRecognition = window.webkitSpeechRecognition;
     const script = document.querySelector("#idea-content");
     script.focus();
     script.setSelectionRange(0, 0);
