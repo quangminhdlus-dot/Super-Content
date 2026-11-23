@@ -944,6 +944,7 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   try {
     if (b.dataset.view) {
+      voice.stopInline();
       await writeChain;
       view = b.dataset.view;
       editing = null;
@@ -952,6 +953,7 @@ document.addEventListener("click", async (ev) => {
       dialog.close();
       render();
     } else if (b.dataset.open) {
+      voice.stopInline();
       editing = b.dataset.open;
       selected.clear();
       render();
@@ -1029,6 +1031,7 @@ document.addEventListener("click", async (ev) => {
           dialog.close();
           break;
         case "back":
+          voice.stopInline();
           await writeChain;
           editing = null;
           render();
