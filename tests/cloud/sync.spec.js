@@ -160,7 +160,15 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng", exact: true })
     .click();
   await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toBeVisible();
-  await expect(a.getByRole("button", { name: "Thử ghi lại" })).toBeHidden();
+  await expect(a.getByRole("button", { name: "Ghi lại" })).toBeHidden();
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
+  await expect(a.locator("#voice-clock")).toBeVisible();
+  await expect(a.locator("#voice-elapsed")).toHaveText(/^[0-2]:\d\d$/);
+  await expect(a.locator("#voice-limit")).toHaveText("2:00");
+  await expect(a.locator("#voice-dialog .voice-orbit")).toBeVisible();
+  await expect(a.locator("#voice-dialog .voice-bars")).toHaveCount(2);
+  await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toHaveText("");
+  await expect(a.locator("#voice-status")).toBeHidden();
   // Wait for actual encoded data, not AudioContext time that may predate recording.
   await expect
     .poll(() => a.evaluate(() => window.voiceTestBytes))
@@ -169,6 +177,8 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
     .click();
   await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "review");
+  await expect(a.locator("#voice-clock")).toBeHidden();
   expect(
     await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);

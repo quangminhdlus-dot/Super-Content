@@ -17,18 +17,70 @@ export function initVoice({
   const modal = document.createElement("dialog");
   modal.id = "voice-dialog";
   modal.setAttribute("aria-labelledby", "voice-title");
-  modal.innerHTML = `<div class="dialog-heading"><h2 id="voice-title">Ghi âm & biên tập AI</h2><button type="button" data-voice="cancel" aria-label="Đóng ghi âm">×</button></div>
-    <p class="muted">Mỗi đoạn tối đa 2 phút / 8 MB. Âm thanh và bản chép được gửi đến OpenAI để xử lý. Ứng dụng không lưu âm thanh trên máy chủ.</p>
-    <p role="status" id="voice-status" aria-live="polite"></p>
-    <div class="voice-controls"><button type="button" class="primary" data-voice="start" hidden>Thử ghi lại</button><button type="button" data-voice="stop" hidden>Dừng & nhận dạng</button><button type="button" data-voice="retry" hidden>Thử lại</button></div>
-    <div class="voice-versions" hidden><label class="field">Bản chép gốc<textarea id="voice-original" rows="6" readonly></textarea></label><label class="field">Bản đã trau chuốt<textarea id="voice-polished" rows="6" readonly></textarea></label>
-      <label class="field">Chọn bản để dùng<select id="voice-version"><option value="original">Bản chép gốc</option><option value="polished" disabled>Bản đã trau chuốt</option></select></label>
-      <p class="muted">Đọc lại tên riêng, số liệu và trích dẫn trước khi dùng. Chèn giữ nguyên nội dung hiện có; thay thế cần xác nhận.</p>
-      <div class="voice-controls"><button type="button" class="primary" data-voice="insert">Chèn tại con trỏ</button><button type="button" data-voice="replace">Thay thế toàn bộ ô</button></div>
-    </div><div class="dialog-footer"><button type="button" data-voice="cancel">Hủy</button></div>`;
+  modal.innerHTML = "<div class=\"dialog-heading voice-heading\">\n  <h2 id=\"voice-title\">Ghi âm</h2>\n  <button type=\"button\" class=\"icon-button\" data-voice=\"cancel\" aria-label=\"Đóng ghi âm\" title=\"Đóng\">×</button>\n</div>\n<div class=\"voice-recording-screen\">\n  <div class=\"voice-orbit\" aria-hidden=\"true\">\n    <span class=\"voice-ring voice-ring-outer\"></span>\n    <span class=\"voice-ring voice-ring-inner\"></span>\n    <div class=\"voice-bars voice-bars-left\"><i></i><i></i><i></i><i></i></div>\n    <div class=\"voice-mic-core\">\n      <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n        <rect x=\"9\" y=\"2.5\" width=\"6\" height=\"12\" rx=\"3\"></rect>\n        <path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7\"></path>\n      </svg>\n    </div>\n    <div class=\"voice-bars voice-bars-right\"><i></i><i></i><i></i><i></i></div>\n  </div>\n  <div id=\"voice-clock\" class=\"voice-timer\" aria-label=\"Thời gian ghi âm\" hidden><span id=\"voice-elapsed\">0:00</span><span class=\"voice-timer-divider\"> / </span><span id=\"voice-limit\">2:00</span></div>\n  <div class=\"voice-controls voice-primary-controls\">\n    <button type=\"button\" class=\"voice-restart\" data-voice=\"start\" hidden>Ghi lại</button>\n    <button type=\"button\" class=\"voice-stop\" data-voice=\"stop\" title=\"Dừng và nhận dạng\" aria-label=\"Dừng & nhận dạng\" hidden>\n      <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"6\" y=\"6\" width=\"12\" height=\"12\" rx=\"2\" fill=\"currentColor\"></rect></svg>\n    </button>\n    <button type=\"button\" data-voice=\"retry\" hidden>Thử lại</button>\n  </div>\n</div>\n<p role=\"status\" id=\"voice-status\" aria-live=\"polite\"></p>\n<details class=\"voice-disclosure\"><summary>Thông tin xử lý</summary><p>Đoạn ghi âm và bản chép được gửi đến OpenAI để xử lý. Ứng dụng không lưu âm thanh trên máy chủ.</p></details>\n<div class=\"voice-versions\" hidden>\n  <label class=\"field\">Bản chép gốc<textarea id=\"voice-original\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Bản đã trau chuốt<textarea id=\"voice-polished\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Chọn bản để dùng<select id=\"voice-version\"><option value=\"original\">Bản chép gốc</option><option value=\"polished\" disabled>Bản đã trau chuốt</option></select></label>\n  <p class=\"muted\">Đọc lại tên riêng, số liệu và trích dẫn trước khi dùng. Chèn giữ nguyên nội dung hiện có; thay thế cần xác nhận.</p>\n  <div class=\"voice-controls\"><button type=\"button\" class=\"primary\" data-voice=\"insert\">Chèn tại con trỏ</button><button type=\"button\" data-voice=\"replace\">Thay thế toàn bộ ô</button></div>\n</div>";
   const q = (selector) => modal.querySelector(selector);
   const button = (name) => q(`[data-voice=${name}]`);
   let session = null;
+  const formatTime = (seconds) =>
+    `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const setPhase = (phase) => {
+    modal.dataset.voicePhase = phase;
+    q("#voice-clock").hidden = phase !== "recording";
+    q(".voice-orbit").hidden = phase === "processing" || phase === "review";
+  };
+  const meterReset = () => {
+    const orbit = q(".voice-orbit");
+    orbit.style.setProperty("--voice-scale", "1");
+    orbit.style.setProperty("--voice-bars-scale", ".4");
+    orbit.style.setProperty("--voice-glow", "0");
+  };
+  function stopMeter(s) {
+    if (s.meterFrame) cancelAnimationFrame(s.meterFrame);
+    s.meterFrame = null;
+    try { s.meterSource?.disconnect(); } catch {}
+    try { s.meterAnalyser?.disconnect(); } catch {}
+    if (s.meterContext) void s.meterContext.close().catch(() => {});
+    s.meterContext = null;
+    s.meterSource = null;
+    s.meterAnalyser = null;
+    meterReset();
+  }
+  function startMeter(s) {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return;
+    try {
+      const context = new Context();
+      const source = context.createMediaStreamSource(s.stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.78;
+      source.connect(analyser);
+      s.meterContext = context;
+      s.meterSource = source;
+      s.meterAnalyser = analyser;
+      const buffer = new Uint8Array(analyser.fftSize);
+      if (context.state === "suspended") void context.resume().catch(() => {});
+      const tick = () => {
+        if (session !== s || s.recorder?.state !== "recording") return;
+        analyser.getByteTimeDomainData(buffer);
+        let sum = 0;
+        for (const value of buffer) {
+          const sample = (value - 128) / 128;
+          sum += sample * sample;
+        }
+        const level = Math.min(1, Math.sqrt(sum / buffer.length) * 7);
+        const orbit = q(".voice-orbit");
+        orbit.style.setProperty("--voice-scale", (1 + level * 0.14).toFixed(3));
+        orbit.style.setProperty("--voice-bars-scale", (0.35 + level * 1.9).toFixed(3));
+        orbit.style.setProperty("--voice-glow", level.toFixed(3));
+        s.meterFrame = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      // Keep recording even if audio visualization is not supported by the browser.
+      stopMeter(s);
+    }
+  }
   const message = (text) => {
     q("#voice-status").textContent = text;
   };
@@ -45,6 +97,7 @@ export function initVoice({
   function cleanup(s) {
     s.controller.abort();
     clearTimers(s);
+    stopMeter(s);
     stopTracks(s);
     if (s.recorder?.state !== "inactive") {
       try {
@@ -85,6 +138,10 @@ export function initVoice({
     q("#voice-version").value = "original";
     q("#voice-version option[value=polished]").disabled = true;
     ["start", "stop", "retry"].forEach((name) => show(name, false));
+    meterReset();
+    q("#voice-elapsed").textContent = "0:00";
+    q("#voice-limit").textContent = formatTime(MAX_RECORDING_MS / 1000);
+    setPhase("preparing");
     message("Đang mở micro…");
     root.append(modal);
     modal.showModal();
@@ -135,6 +192,7 @@ export function initVoice({
   }
   async function process(s) {
     if (session !== s) return;
+    setPhase("processing");
     show("retry", false);
     show("start", false);
     show("stop", false);
@@ -153,11 +211,11 @@ export function initVoice({
       q("#voice-polished").value = s.polished;
       q("#voice-version option[value=polished]").disabled = false;
       q("#voice-version").value = "polished";
-      message(
-        "Hãy xem lại và chọn bản muốn dùng. Nội dung của bạn chưa thay đổi.",
-      );
+      setPhase("review");
+      message("Chọn bản chép để chèn. Nội dung hiện tại chưa thay đổi.");
     } catch (error) {
       if (session !== s) return;
+      setPhase("error");
       message(
         `${error.message}${s.original ? " Bạn vẫn có thể chèn bản chép gốc." : " Không đóng cửa sổ nếu muốn giữ đoạn ghi để thử lại."}`,
       );
@@ -167,12 +225,15 @@ export function initVoice({
   function finish(s) {
     if (session !== s || s.recorder?.state !== "recording") return;
     clearTimers(s);
+    stopMeter(s);
     s.recorder.stop();
     stopTracks(s);
     show("stop", false);
+    setPhase("processing");
     message("Đang hoàn tất đoạn ghi…");
   }
   async function start(s, streamPromise = null) {
+    setPhase("preparing");
     show("start", false);
     show("retry", false);
     message("Đang chờ quyền truy cập micro…");
@@ -206,6 +267,7 @@ export function initVoice({
       s.recorder.onerror = () => {
         if (session !== s) return;
         cleanup(s);
+        setPhase("error");
         message(
           "Ghi âm bị lỗi. Nội dung đang viết được giữ nguyên. Hãy đóng và ghi lại.",
         );
@@ -227,6 +289,7 @@ export function initVoice({
           message(
             "Đoạn ghi trống, quá lớn hoặc không hỗ trợ định dạng này. Hãy ghi lại đoạn ngắn hơn.",
           );
+          setPhase("error");
           show("start", true);
           return;
         }
@@ -235,17 +298,18 @@ export function initVoice({
       };
       s.recorder.start(1000);
       s.started = Date.now();
-      message("Đang ghi 0:00 / 2:00. Bạn có thể dừng bất cứ lúc nào.");
+      q("#voice-elapsed").textContent = "0:00";
+      setPhase("recording");
+      message("");
       show("stop", true);
+      startMeter(s);
       s.clock = setInterval(() => {
         const seconds = Math.floor((Date.now() - s.started) / 1000);
         if (seconds >= MAX_RECORDING_MS / 1000) {
           finish(s);
           return;
         }
-        message(
-          `Đang ghi ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} / 2:00`,
-        );
+        q("#voice-elapsed").textContent = formatTime(seconds);
       }, 500);
       s.limit = setTimeout(() => finish(s), MAX_RECORDING_MS);
       stream
@@ -256,6 +320,7 @@ export function initVoice({
     } catch (error) {
       stopTracks(s);
       if (session !== s) return;
+      setPhase("error");
       message(
         ["NotAllowedError", "SecurityError"].includes(error.name)
           ? "Chưa được cấp quyền micro. Cho phép micro trong cài đặt trình duyệt rồi thử lại."
