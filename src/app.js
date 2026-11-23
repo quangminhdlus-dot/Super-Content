@@ -311,6 +311,34 @@ async function batch(action) {
     render();
   }
 }
+// Advance only the open idea, preserving its text and opening that same record
+// in the script editor. Wait for all in-flight autosaves before changing stage.
+async function moveCurrentIdeaToScript(button) {
+  const id = editing;
+  if (!id) return;
+  // Finish interim dictation and enqueue the currently visible text.
+  voice.stopInline();
+  if (button) button.disabled = true;
+  try {
+    await writeChain;
+    const latest = videos().find((v) => v.id === id);
+    if (!latest || latest.stage !== "ideas") {
+      toast("Ý tưởng này đã chuyển công đoạn hoặc không còn tồn tại.");
+      if (button?.isConnected) button.disabled = false;
+      return;
+    }
+    await enqueue(id, (v) => v.stage === "ideas" ? transition(v, "script") : v);
+    selected.clear();
+    view = "script";
+    editing = id;
+    render();
+    scheduleSync();
+    toast("Đã chuyển sang Kịch bản. Nội dung ý tưởng được giữ nguyên.");
+  } catch {
+    toast("Không thể chuyển công đoạn. Ý tưởng đang viết vẫn được giữ.");
+    if (button?.isConnected) button.disabled = false;
+  }
+}
 async function move(stage) {
   if (
     stage === "filming" &&
@@ -559,7 +587,7 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Bấm Ghi âm để bắt đầu…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><div class="${isIdea ? "idea-writing-area" : "script-writing-area"}"><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Chạm micro góc dưới để đọc thành chữ…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea>${isIdea ? `<div class="idea-next-row"><button class="primary idea-next-stage" type="button" data-action="idea-to-script">Chuyển sang Kịch bản ${icon("arrow")}</button></div>` : ""}</div></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -1022,6 +1050,9 @@ document.addEventListener("click", async (ev) => {
           break;
         case "move-title-to-content":
           moveAccidentalTitleToContent();
+          break;
+        case "idea-to-script":
+          await moveCurrentIdeaToScript(b);
           break;
         case "settings":
           settings();
