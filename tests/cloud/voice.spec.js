@@ -106,12 +106,14 @@ async function open(page) {
     .getByRole("button", { name: "Ghi âm cho Nội dung", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Bắt đầu ghi", exact: true }),
+    page.getByRole("button", { name: "Dừng & nhận dạng", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Thử ghi lại", exact: true }),
+  ).toBeHidden();
 }
 async function record(page) {
   await open(page);
-  await page.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
   await page
     .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
     .click();
@@ -164,7 +166,6 @@ test("network retries keep audio; polish failure keeps original without transcri
     window.failTranscribe = true;
   });
   await open(page);
-  await page.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
   await page
     .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
     .click();
@@ -211,8 +212,9 @@ test("denied microphone, pending permission cancellation, automatic stop and con
   await page.evaluate(() => {
     window.denied = true;
   });
-  await open(page);
-  await page.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Ghi âm cho Nội dung", exact: true })
+    .click();
   await expect(page.locator("#voice-status")).toContainText(
     "Chưa được cấp quyền micro",
   );
@@ -220,7 +222,7 @@ test("denied microphone, pending permission cancellation, automatic stop and con
     window.denied = false;
     window.delayPermission = true;
   });
-  await page.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
+  await page.getByRole("button", { name: "Thử ghi lại", exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => typeof window.grantPermission))
     .toBe("function");
@@ -234,7 +236,6 @@ test("denied microphone, pending permission cancellation, automatic stop and con
     .toBeGreaterThan(0);
   await page.clock.install();
   await open(page);
-  await page.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
   await page.clock.fastForward(120001);
   await expect(page.locator("#voice-polished")).toHaveValue(
     "Nội dung rõ ràng.",
