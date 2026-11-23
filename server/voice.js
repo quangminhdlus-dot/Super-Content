@@ -159,8 +159,8 @@ export function createVoiceService({
             .filter((item) => item.type === "output_text")
             .map((item) => item.text)
             .join(" ").trim();
-          query = /^[a-zA-Z0-9 -]{5,100}$/.test(found || "")
-            ? normalizeTitleQuery(found) : null;
+          const cleaned = normalizeTitleQuery(found);
+          query = cleaned && /^[a-zA-Z0-9 -]{5,100}$/.test(cleaned) ? cleaned : null;
         } catch { query = null; }
       }
       const evidence = await titleResearch.study(query, signal);
