@@ -17,6 +17,7 @@ import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
 import { initVoice } from "./voice.js";
 import { voiceRequest } from "./voice-client.js";
+import { collapseTitleChoices, revealTitleChoices } from "./title-choices.js";
 import { parseReferenceLinks, referenceKind, addReferenceLinks, removeReferenceLink } from "./reference-links.js";
 import { mergeCloudVideo, sameVideoContent } from "./sync-merge.js";
 const app = document.querySelector("#app"),
@@ -663,6 +664,15 @@ function renderTitleEvidence(result, id, sourceContent) {
   const options = [result.title, ...(result.alternatives || [])].filter(Boolean);
   const group = document.createElement("div");
   group.className = "title-option-list";
+  const showAgain = document.createElement("button");
+  showAgain.type = "button";
+  showAgain.className = "title-choice-reopen";
+  showAgain.hidden = true;
+  showAgain.setAttribute("aria-expanded", "true");
+  showAgain.addEventListener("click", () => {
+    revealTitleChoices(group, showAgain);
+    group.querySelector(".title-option.selected")?.focus();
+  });
   for (const [index, option] of options.entries()) {
     const button = document.createElement("button");
     button.type = "button";
@@ -675,11 +685,13 @@ function renderTitleEvidence(result, id, sourceContent) {
       if (editing !== id || !input || !content || content.value.trim() !== sourceContent) return;
       input.value = option;
       input.dispatchEvent(new Event("input", { bubbles: true }));
-      surface.querySelectorAll(".title-option").forEach((btn) => btn.classList.toggle("selected", btn === button));
+      // Hide the other two titles as soon as one is explicitly selected.
+      // Keep an unobtrusive button for re-opening the suggestions.
+      collapseTitleChoices(group, button, showAgain);
     });
     group.append(button);
   }
-  surface.append(group);
+  surface.append(group, showAgain);
   const research = result.research || {};
   if (research.status === "verified")
     addText(surface, "Đối chiếu " + research.sampledVideos + " video trong 12 tháng; có " + research.verifiedOutliers + " mẫu vượt hiệu suất tương đối của kênh (ít nhất 2×). Đây không phải tỷ lệ nhấp hay bằng chứng rằng riêng tiêu đề tạo ra lượt xem.", "title-source-note");
