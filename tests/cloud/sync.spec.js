@@ -159,7 +159,8 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await a
     .getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng", exact: true })
     .click();
-  await a.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
+  await expect(a.getByRole("button", { name: "Dừng & nhận dạng" })).toBeVisible();
+  await expect(a.getByRole("button", { name: "Thử ghi lại" })).toBeHidden();
   // Wait for actual encoded data, not AudioContext time that may predate recording.
   await expect
     .poll(() => a.evaluate(() => window.voiceTestBytes))
