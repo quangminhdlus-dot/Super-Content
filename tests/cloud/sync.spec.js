@@ -212,6 +212,9 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     navigator.mediaDevices.getUserMedia = async () => output.stream;
   });
   const beforeQuick = await a.evaluate(() => window.voiceTestBytes);
+  // Floating capture is intentionally available only on the Ideas list, not inside editors.
+  await a.locator("[data-action=back]").click();
+  await expect(a.getByRole("button", { name: "Ghi ý tưởng nhanh" })).toBeVisible();
   await a.getByRole("button", { name: "Ghi ý tưởng nhanh" }).click();
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await expect(a.locator("#voice-limit")).toHaveText("10:00");
