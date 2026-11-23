@@ -2144,3 +2144,106 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 @media (prefers-reduced-motion:reduce) {
   .voice-mic.dictation-active { animation:none; }
 }
+
+
+/* Idea writing: always-reachable live dictation and in-place stage advance. */
+.idea-writing-area {
+  position:relative;
+  min-width:0;
+  background:var(--surface);
+}
+.idea-writing-area #idea-content {
+  padding-bottom:70px;
+}
+.idea-dictation-float.voice-mic {
+  position:absolute;
+  bottom:97px;
+  right:17px;
+  z-index:3;
+  width:52px;
+  height:52px;
+  min-height:52px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:50%;
+  background:#0866FF;
+  color:#fff;
+  font-size:23px;
+  box-shadow:0 6px 18px #020a1870;
+  cursor:pointer;
+}
+.idea-dictation-float.voice-mic:hover {
+  background:#0759dd;
+}
+.idea-dictation-float.voice-mic.dictation-active {
+  background:#0759dd;
+  box-shadow:0 0 0 3px #0866ff45,0 6px 18px #020a1870;
+}
+.idea-writing-area > .live-dictation-status {
+  padding:3px 18px 10px;
+  margin:0;
+}
+.idea-next-row {
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding:13px 18px 17px;
+  background:var(--surface);
+  border-top:1px solid var(--line);
+}
+.idea-next-stage {
+  min-height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:#0866FF;
+  border-color:transparent;
+  color:#fff;
+}
+.idea-next-stage svg {
+  width:17px;
+  height:17px;
+}
+.idea-next-stage:hover:not(:disabled) { background:#0759dd; }
+@media(max-width:800px) {
+  .idea-dictation-float.voice-mic {
+    position:fixed;
+    bottom:calc(95px + env(safe-area-inset-bottom));
+    right:calc(19px + env(safe-area-inset-right));
+    z-index:64;
+    width:55px;
+    height:55px;
+    min-height:55px;
+    border-radius:50%;
+  }
+  .idea-next-row {
+    padding:12px 15px 16px;
+  }
+  .idea-next-stage {
+    width:100%;
+    min-height:49px;
+    font-size:.82rem;
+  }
+}
+/* New idea modal: microphone stays near the bottom-right as the form scrolls. */
+#dialog .idea-create-form > .voice-icon-only {
+  position:sticky;
+  bottom:74px;
+  display:grid;
+  place-items:center;
+  width:46px;
+  height:46px;
+  min-height:46px;
+  margin:4px 0 4px auto;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:#0866FF;
+  color:#fff;
+  z-index:2;
+}
+#dialog .idea-create-form > .voice-icon-only:hover { background:#0759dd; }
