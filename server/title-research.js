@@ -113,8 +113,11 @@ export function createTitleResearch({
         return { status: "unavailable", reason: "no_matches", query: cleaned, sampledVideos: 0, examples: [] };
       // One query per topic; prioritize relevance from YouTube search and normalize by age.
       // Avoid treating channel size / total views as evidence a title worked.
-      const promising = recent.slice()
-        .sort((a, b) => (viewRate(b, now()) || 0) - (viewRate(a, now()) || 0))
+      const byRate = (a, b) => (viewRate(b, now()) || 0) - (viewRate(a, now()) || 0);
+      const lastSixMonths = recent.filter((v) => ageDays(v.published_at, now()) <= 183).sort(byRate);
+      const olderSixMonths = recent.filter((v) => ageDays(v.published_at, now()) > 183).sort(byRate);
+      // Prefer recent patterns, but retain 6-12-month evidence when available.
+      const promising = [...lastSixMonths.slice(0, 6), ...olderSixMonths.slice(0, 2)]
         .slice(0, 8);
       const uniqueChannels = [...new Set(promising.map((v) => v.channel_id))].slice(0, 8);
       const channels = await youtube.get("channels", {
