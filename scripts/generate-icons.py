@@ -14,11 +14,11 @@ for size, name in [(192, 'icon-192'), (512, 'icon-512'), (180, 'apple-touch-icon
         row = bytearray()
         for x in range(size):
             a, b = x / size, y / size
-            color = (15, 18, 22)
+            color = (11, 18, 32)
             if .19 < a < .81 and .25 < b < .75:
-                color = (255, 122, 26)
+                color = (101, 167, 255)
             if .435 < a < .62 and abs(b - .5) < (.62 - a) * .65:
-                color = (15, 18, 22)
+                color = (11, 18, 32)
             row.extend(color)
         rows.append(b'\x00' + row)
     Path(f'public/icons/{name}.png').write_bytes(
