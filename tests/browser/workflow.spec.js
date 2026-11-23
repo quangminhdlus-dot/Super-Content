@@ -67,14 +67,14 @@ test("new idea saves content without a title; microphone is icon-only on mobile"
   const mic = page.locator("#dialog .voice-icon-only");
   await expect(mic).toBeVisible();
   await expect(mic).toHaveText("🎙");
-  await expect(mic).toHaveAttribute("aria-label", "Ghi âm cho Nội dung ý tưởng");
+  await expect(mic).toHaveAttribute("aria-label", "Bắt đầu nhập giọng nói cho Nội dung ý tưởng");
   await page.locator("#new-idea-content").fill("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
   await page.getByRole("button", { name: "Lưu ý tưởng" }).click();
   await expect(page.locator(".video-row")).toContainText("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
   await page.reload();
   await page.locator(".video-main").first().click();
   await expect(page.locator("#idea-content")).toHaveValue("Ý tưởng về việc giữ sự kiên trì mỗi ngày.");
-  await expect(page.getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bắt đầu nhập giọng nói cho Nội dung ý tưởng" })).toBeVisible();
 });
 
 test("floating microphone is directly above the mobile navigation and needs login for AI", async ({ page }) => {

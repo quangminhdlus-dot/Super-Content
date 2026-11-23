@@ -62,11 +62,9 @@ document.body.append(quickIdeaBuffer);
 
 const voice = initVoice({
   onInserted: ({ target }) => {
+    // Recording in other fields still uses the AI dialog. Live dictation
+    // inside the idea editor does not submit the form automatically.
     if (target.id === "idea-content") void suggestTitleForIdea();
-    if (target.id === "new-idea-content") {
-      // A new idea recorded from the add form is also saved with one Send tap.
-      document.querySelector("#add-form")?.requestSubmit();
-    }
   },
   onQuickTranscript: async (text) => saveQuickRecordedIdea(text),
   onQuickPolished: async (id, original, polished) => {
@@ -361,6 +359,8 @@ function addModal() {
 
   dialog.querySelector("#add-form").onsubmit = async (ev) => {
     ev.preventDefault();
+    // Preserve the currently visible interim words before saving the new idea.
+    voice.stopInline();
     const form = ev.currentTarget;
     const title = form.elements.title.value.trim();
     const content = form.elements.content.value.trim();
@@ -944,6 +944,7 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   try {
     if (b.dataset.view) {
+      voice.stopInline();
       await writeChain;
       view = b.dataset.view;
       editing = null;
@@ -952,6 +953,7 @@ document.addEventListener("click", async (ev) => {
       dialog.close();
       render();
     } else if (b.dataset.open) {
+      voice.stopInline();
       editing = b.dataset.open;
       selected.clear();
       render();
@@ -1025,9 +1027,11 @@ document.addEventListener("click", async (ev) => {
           settings();
           break;
         case "close":
+          voice.stopInline();
           dialog.close();
           break;
         case "back":
+          voice.stopInline();
           await writeChain;
           editing = null;
           render();
