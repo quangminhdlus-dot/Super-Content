@@ -144,7 +144,8 @@ test("add-idea dialog microphone also remains above keyboard without losing text
   await expect(field).toHaveValue("Nội dung tuyệt vời chuẩn bị ghi âm");
 });
 
-test("rotating to touch landscape recalculates keyboard position rather than keeping portrait height", async ({ page }) => {
+test("rotating to touch landscape recalculates keyboard position rather than keeping portrait height", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile", "Landscape iPhone requires a touch device");
   await page.setViewportSize({ width: 390, height: 844 });
   await mockKeyboardAndSpeech(page);
   await openIdea(page);
