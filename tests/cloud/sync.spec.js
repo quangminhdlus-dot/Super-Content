@@ -114,5 +114,86 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .toBe("Bản thiết bị chưa đồng bộ");
   const other = await client("b@example.com");
   await expect(other.locator(".video-row")).toHaveCount(0);
+  // Real Chromium MediaRecorder + authenticated client + existing autosave/sync path.
+  await a.reload();
+  await a.locator(".video-main").click();
+  await a.locator("#script").fill("Giữ bản gốc");
+  await expect.poll(() => [...server.values()][0].script).toBe("Giữ bản gốc");
+  let recordedType, recordedBytes;
+  await a.route("https://research-api.example/api/voice/**", async (route) => {
+    expect(route.request().headers().authorization).toMatch(/^Bearer /);
+    if (route.request().url().endsWith("transcribe")) {
+      recordedType = route.request().headers()["content-type"];
+      recordedBytes = route.request().postDataBuffer();
+      return route.fulfill({ json: { original: "ừ thêm ý này" } });
+    }
+    return route.fulfill({ json: { polished: "Thêm ý này." } });
+  });
+  await a.evaluate(() => {
+    const audio = new AudioContext();
+    const oscillator = audio.createOscillator();
+    const destination = audio.createMediaStreamDestination();
+    oscillator.connect(destination);
+    oscillator.start();
+    window.voiceTestAudio = audio;
+    window.voiceTestStream = destination.stream;
+    window.voiceTestBytes = 0;
+    const NativeRecorder = window.MediaRecorder;
+    window.MediaRecorder = class extends NativeRecorder {
+      constructor(...args) {
+        super(...args);
+        this.addEventListener("dataavailable", (event) => {
+          window.voiceTestBytes += event.data.size;
+        });
+      }
+    };
+    navigator.mediaDevices.getUserMedia = async () => {
+      await audio.resume();
+      return destination.stream;
+    };
+    const script = document.querySelector("#script");
+    script.focus();
+    script.setSelectionRange(0, 0);
+  });
+  await a.setViewportSize({ width: 390, height: 844 });
+  await a
+    .getByRole("button", { name: "Ghi âm cho Nội dung kịch bản", exact: true })
+    .click();
+  await a.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
+  // Wait for actual encoded data, not AudioContext time that may predate recording.
+  await expect
+    .poll(() => a.evaluate(() => window.voiceTestBytes))
+    .toBeGreaterThan(0);
+  await a
+    .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
+    .click();
+  await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
+  expect(
+    await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
+  await a.screenshot({ path: "test-results/voice-review.png", fullPage: true });
+  await expect(a.locator("#script")).toHaveValue("Giữ bản gốc");
+  expect(recordedType).toMatch(/^audio\/webm/);
+  expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));
+  expect(
+    await a.evaluate(() =>
+      window.voiceTestStream
+        .getTracks()
+        .every((track) => track.readyState === "ended"),
+    ),
+  ).toBe(true);
+  await a
+    .getByRole("button", { name: "Chèn tại con trỏ", exact: true })
+    .click();
+  await expect
+    .poll(() => [...server.values()][0].script)
+    .toBe("Thêm ý này. Giữ bản gốc");
+  expect(await a.locator("#script").evaluate((el) => el.selectionStart)).toBe(
+    12,
+  );
+  await a.evaluate(() => window.voiceTestAudio.close());
+  await a.reload();
+  await a.locator(".video-main").click();
+  await expect(a.locator("#script")).toHaveValue("Thêm ý này. Giữ bản gốc");
   for (const context of clients) await context.close();
 });

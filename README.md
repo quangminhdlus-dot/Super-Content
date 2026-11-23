@@ -58,6 +58,10 @@ Sau khi có URL HTTPS: mở bằng Safari trên iPhone → Chia sẻ → **Thêm
 
 Đã kiểm tra Chromium desktop/viewport cảm ứng 390×844. Chưa kiểm thử trên iPhone/Safari thật. Chưa xác nhận triển khai Pages hoặc đồng bộ với Supabase thật.
 
+## Ghi âm & biên tập AI
+
+Nút micro cho kịch bản, ghi chú và các ô nội dung; MediaRecorder giữ đúng định dạng Chrome/Safari. Xem lại bản chép gốc và bản trau chuốt trước khi chèn hoặc xác nhận thay thế. Dùng backend Node và tài khoản Supabase hiện có, không tạo bảng hay lưu âm thanh trên máy chủ. Xem [cấu hình production, giới hạn, chi phí và cách tự kiểm tra](docs/voice-ai.md).
+
 ## Nghiên cứu AI cá nhân hóa
 
 **Nâng cấp tìm video bằng mô tả nhu cầu, từ khóa hoặc video mẫu:** xem [hướng dẫn AI Search 004](docs/ai-search.md). Phương pháp và nguồn độc lập, có nhiệm vụ lưu lại, chiến lược có thể sửa và điểm nhu cầu/tiêu chuẩn/thị trường riêng. Cần review migration 004 và cập nhật backend trước khi dùng tính năng mới với dịch vụ thật; không có migration tự chạy.

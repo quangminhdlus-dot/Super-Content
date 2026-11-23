@@ -5,14 +5,18 @@ import { repository } from "./repository.js";
 import { personalRepository } from "./personal-repository.js";
 import { startResearchJob, stepResearchJob } from "./jobs.js";
 import { ResearchError } from "./validation.js";
+import { createVoiceService, createVoiceLimiter } from "./voice.js";
+import { MAX_AUDIO_BYTES } from "../shared/voice.js";
 export function createResearchServer({
   authenticate,
   scan,
   jobs,
+  voice,
   allowedOrigins = [],
   version = process.env.RENDER_GIT_COMMIT || null,
 }) {
   const attempts = new Map();
+  const reserveVoice = createVoiceLimiter();
   return createServer(async (req, res) => {
     const origin = req.headers.origin;
     res.setHeader("Cache-Control", "no-store");
@@ -45,13 +49,21 @@ export function createResearchServer({
         service: "Super Content Research",
         status: "ok",
         version,
+        voice: { configured: voice?.configured === true },
       });
+    const voiceOperation =
+      req.url === "/api/voice/transcribe"
+        ? "transcribe"
+        : req.url === "/api/voice/polish"
+          ? "polish"
+          : null;
     const step = req.url?.match(
       /^\/api\/research\/jobs\/([0-9a-f-]{36})\/step$/,
     );
     if (
       (!["/api/research/scan", "/api/research/jobs"].includes(req.url) &&
-        !step) ||
+        !step &&
+        !voiceOperation) ||
       req.method !== "POST"
     )
       return reply(404, { error: "Không tìm thấy API." });
@@ -77,6 +89,75 @@ export function createResearchServer({
       const user = await authenticate(token);
       if (!user?.id)
         throw new ResearchError("AUTH", "Phiên đăng nhập không hợp lệ.", 401);
+      if (voiceOperation) {
+        if (!voice)
+          throw new ResearchError(
+            "VOICE_CONFIG",
+            "Ghi âm AI chưa được bật trên máy chủ.",
+            503,
+          );
+        const release = reserveVoice(user.id, voiceOperation);
+        const controller = new AbortController();
+        const disconnect = () => {
+          if (!res.writableEnded) controller.abort();
+        };
+        res.on("close", disconnect);
+        try {
+          const maximum =
+            voiceOperation === "transcribe" ? MAX_AUDIO_BYTES : 131072;
+          if (Number(req.headers["content-length"]) > maximum) {
+            req.resume();
+            throw new ResearchError(
+              "BODY_LIMIT",
+              "Đoạn ghi quá lớn. Ghi từng đoạn tối đa 2 phút / 8 MB.",
+              413,
+            );
+          }
+          let bytes = 0;
+          const chunks = [];
+          for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+            bytes += chunk.length;
+            if (bytes > maximum) {
+              req.resume();
+              throw new ResearchError(
+                "BODY_LIMIT",
+                "Đoạn ghi vượt quá giới hạn tải lên.",
+                413,
+              );
+            }
+            chunks.push(chunk);
+          }
+          const body = Buffer.concat(chunks);
+          let result;
+          if (voiceOperation === "transcribe")
+            result = await voice.transcribe(
+              body,
+              req.headers["content-type"],
+              controller.signal,
+            );
+          else {
+            if (
+              req.headers["content-type"]?.split(";")[0] !== "application/json"
+            )
+              throw new ResearchError("BODY_JSON", "Cần dữ liệu JSON.", 415);
+            let input;
+            try {
+              input = JSON.parse(body.toString("utf8"));
+            } catch {
+              throw new ResearchError(
+                "BODY_JSON",
+                "Dữ liệu biên tập không hợp lệ.",
+              );
+            }
+            result = await voice.polish(input?.original, controller.signal);
+          }
+          if (!controller.signal.aborted) reply(200, result);
+        } finally {
+          res.off("close", disconnect);
+          release();
+        }
+        return;
+      }
       if (jobs) {
         const chunks = [];
         let bytes = 0;
@@ -155,7 +236,13 @@ if (
           fetch(input, { ...init, signal: AbortSignal.timeout(15000) }),
       },
     });
+    const voice = createVoiceService({
+      key: OPENAI_API_KEY,
+      transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL,
+      editModel: process.env.OPENAI_VOICE_EDIT_MODEL,
+    });
     const server = createResearchServer({
+      voice,
       allowedOrigins: RESEARCH_ALLOWED_ORIGINS.split(",")
         .map((s) => s.trim())
         .filter(Boolean),
@@ -187,8 +274,14 @@ if (
     });
     server.requestTimeout = 100000;
     server.headersTimeout = 10000;
-    server.listen(Number(PORT) || 8787, "0.0.0.0", () =>
-      console.log("Super Content Research API started."),
-    );
+    server.listen(Number(PORT) || 8787, "0.0.0.0", () => {
+      console.log("Super Content Research API started.");
+      // Metadata reads cost no inference tokens; log only boolean readiness, never secrets.
+      voice
+        .verifyModels()
+        .then((ready) =>
+          console.log(JSON.stringify({ event: "voice_readiness", ...ready })),
+        );
+    });
   }
 }

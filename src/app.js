@@ -15,6 +15,7 @@ import * as db from "./storage.js";
 import { cloud, fetchVideos, saveVideo } from "./cloud.js";
 import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
+import { initVoice } from "./voice.js";
 const app = document.querySelector("#app"),
   dialog = document.querySelector("#dialog");
 const paths = {
@@ -43,6 +44,7 @@ const e = (s) =>
         c
       ],
   );
+const voice = initVoice();
 let user = null,
   scope = "demo",
   records = [],
@@ -499,6 +501,7 @@ async function changeSession(session) {
   const newUser = session?.user || null;
   if (newUser?.id === user?.id && generation) return;
   generation++;
+  voice.cancel();
   resetResearch();
   user = newUser;
   scope = user?.id || "demo";
