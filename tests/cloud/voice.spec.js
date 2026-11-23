@@ -104,6 +104,7 @@ async function setup(page, { mp4 = false } = {}) {
   );
 }
 async function open(page) {
+  const requestCount = await page.evaluate(() => window.requests.length);
   await page.locator("#target").evaluate((el) => {
     el.focus();
     el.setSelectionRange(4, 4);
@@ -120,7 +121,7 @@ async function open(page) {
   await page.getByRole("button", { name: "Tạm dừng" }).click();
   await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "paused");
   await expect(page.getByRole("button", { name: "Tiếp tục" })).toBeVisible();
-  expect(await page.evaluate(() => window.requests.length)).toBe(0);
+  expect(await page.evaluate(() => window.requests.length)).toBe(requestCount);
   await page.getByRole("button", { name: "Tiếp tục" }).click();
   await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
 }
