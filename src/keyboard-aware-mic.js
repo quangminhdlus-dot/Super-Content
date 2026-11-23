@@ -65,7 +65,7 @@ export function attachKeyboardAwareMic({
       detach();
       return;
     }
-    if (!win.matchMedia?.("(max-width: 800px)").matches) {
+    if (!win.matchMedia?.("(max-width: 800px), (pointer: coarse)").matches) {
       restore();
       return;
     }
