@@ -223,10 +223,10 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await expect.poll(() => server.size).toBe(2);
   await expect(a.locator(".page-heading h1")).toContainText("Kho ý tưởng");
   await expect(a.locator(".video-row")).toHaveCount(2);
-  await expect(a.locator(".video-row")).toContainText("Thêm ý này.");
+  await expect(a.locator(".video-row").first()).toContainText("Thêm ý này.");
   await a.evaluate(() => window.voiceTestAudio.close());
   await a.reload();
-  await a.locator(".video-main").click();
+  await a.locator(".video-main").filter({ hasText: "Video chung" }).click();
   await expect(a.locator("#idea-content")).toHaveValue("Thêm ý này. Giữ bản gốc");
   for (const context of clients) await context.close();
 });
