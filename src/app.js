@@ -34,6 +34,7 @@ const paths = {
   back: "M19 12H5 M10 7l-5 5 5 5",
   check: "M5 12l4 4L19 6",
   close: "M6 6l12 12 M6 18L18 6",
+  utilities: "M4 6h16v12H4z M4 10h16 M10 14h4",
 };
 const icon = (n) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[n] || paths.script}"/></svg>`;
@@ -112,9 +113,18 @@ function status() {
       : syncMessage || (dirty ? `${dirty} thay đổi chờ đồng bộ` : "Đã đồng bộ");
 }
 function updateStatus() {
+  const message = status();
   document
     .querySelectorAll("[data-status]")
-    .forEach((el) => (el.textContent = status()));
+    .forEach((el) => (el.textContent = message));
+  const notice = document.querySelector(".local-notice");
+  if (notice) {
+    // Routine sync stays out of the workspace; alert only on failed sync or conflicts.
+    notice.hidden = !user || (
+      !records.some((record) => record.conflict) &&
+      !syncMessage.startsWith("Chưa đồng bộ")
+    );
+  }
 }
 initResearch({
   getUser: () => user,
@@ -126,7 +136,7 @@ initResearch({
   },
 });
 function render() {
-  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content <span>/</span> ${e(editing ? "Soạn thảo" : LABELS[STAGES.indexOf(view)] || (view === "research" ? "Nghiên cứu YouTube" : view === "archive" ? "Lưu trữ" : "Thùng rác"))}</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice"><span class="status-dot"></span><span data-status>${e(status())}</span><button data-action="${user ? "sync" : "settings"}">${user ? "Đồng bộ lại" : "Tài khoản & cài đặt"} ${icon("arrow")}</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
+  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="orange">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" hidden><span data-status>${e(status())}</span><button data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
   if (view === "research") showResearch(document.querySelector("#content"));
   else if (!editing) renderRows();
   else {
@@ -134,6 +144,7 @@ function render() {
     showProvenance();
   }
   renderSelection();
+  updateStatus();
 }
 function publishedIcon() {
   return "published";
@@ -669,6 +680,8 @@ async function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 document.addEventListener("click", async (ev) => {
+  if (!ev.target.closest(".utility-dropdown"))
+    document.querySelector(".utility-dropdown[open]")?.removeAttribute("open");
   const b = ev.target.closest("button");
   if (!b) return;
   try {
@@ -775,6 +788,14 @@ document.addEventListener("click", async (ev) => {
       }
   } catch (err) {
     toast(`Không thể hoàn tất: ${err.message}`);
+  }
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape") return;
+  const menu = document.querySelector(".utility-dropdown[open]");
+  if (menu) {
+    menu.removeAttribute("open");
+    menu.querySelector("summary")?.focus();
   }
 });
 document.addEventListener("change", (ev) => {

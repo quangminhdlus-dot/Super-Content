@@ -59,6 +59,41 @@ test("new idea saves title and content together in one submission", async ({ pag
   await expect(page.locator("#idea-content")).toHaveValue("Ví dụ so sánh kẹo ngọt với video vô bổ.");
 });
 
+test("mobile toolbar has stable Super Content label and accessible archive/trash menu", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("./");
+  await expect(page.locator(".topbar .breadcrumb")).toHaveText("Super Content");
+  await expect(page.locator(".local-notice")).toBeHidden();
+  await page.getByRole("button", { name: "Thêm ý tưởng", exact: true }).click();
+  await page.locator("#new-idea-title").fill("Ý tưởng lưu và xóa");
+  await page.locator("#new-idea-content").fill("Nội dung giữ nguyên sau khi khôi phục.");
+  await page.getByRole("button", { name: "Lưu ý tưởng" }).click();
+  await page.locator("#select-all").check();
+  await page.locator(".selection-bar [data-action=archive]").click();
+  await expect(page.locator(".video-row")).toHaveCount(0);
+  await page.locator(".utility-dropdown summary").click();
+  await expect(page.locator(".utility-popover [data-view=archive]")).toBeVisible();
+  await expect(page.locator(".utility-popover [data-view=trash]")).toBeVisible();
+  await page.locator(".utility-popover [data-view=archive]").click();
+  await expect(page.locator(".page-heading h1")).toContainText("Lưu trữ");
+  await expect(page.locator(".video-row")).toHaveCount(1);
+  await expect(page.locator(".topbar .breadcrumb")).toHaveText("Super Content");
+  await page.locator("#select-all").check();
+  await page.locator(".selection-bar [data-action=restore]").click();
+  await stage(page, "Ý tưởng").click();
+  await page.locator("#select-all").check();
+  page.once("dialog", (prompt) => prompt.accept());
+  await page.locator(".selection-bar [data-action=delete]").click();
+  await page.locator(".utility-dropdown summary").click();
+  await page.locator(".utility-popover [data-view=trash]").click();
+  await expect(page.locator(".page-heading h1")).toContainText("Thùng rác");
+  await expect(page.locator(".video-row")).toHaveCount(1);
+  await expect(page.locator(".video-main")).toContainText("Ý tưởng lưu và xóa");
+  await page.locator("#select-all").check();
+  await page.locator(".selection-bar [data-action=restore]").click();
+  await stage(page, "Ý tưởng").click();
+  await expect(page.locator(".video-row")).toHaveCount(1);
+});
 test("production stages show only heading; mobile viewport disallows page zoom", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./");
