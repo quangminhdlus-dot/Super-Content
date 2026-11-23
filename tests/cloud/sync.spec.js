@@ -137,6 +137,16 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     oscillator.start();
     window.voiceTestAudio = audio;
     window.voiceTestStream = destination.stream;
+    window.voiceTestBytes = 0;
+    const NativeRecorder = window.MediaRecorder;
+    window.MediaRecorder = class extends NativeRecorder {
+      constructor(...args) {
+        super(...args);
+        this.addEventListener("dataavailable", (event) => {
+          window.voiceTestBytes += event.data.size;
+        });
+      }
+    };
     navigator.mediaDevices.getUserMedia = async () => {
       await audio.resume();
       return destination.stream;
@@ -150,9 +160,10 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Ghi âm cho Nội dung kịch bản", exact: true })
     .click();
   await a.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
+  // Wait for actual encoded data, not AudioContext time that may predate recording.
   await expect
-    .poll(() => a.evaluate(() => window.voiceTestAudio.currentTime))
-    .toBeGreaterThan(0.3);
+    .poll(() => a.evaluate(() => window.voiceTestBytes))
+    .toBeGreaterThan(0);
   await a
     .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
     .click();
