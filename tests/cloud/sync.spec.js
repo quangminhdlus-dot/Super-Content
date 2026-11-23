@@ -145,6 +145,7 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     script.focus();
     script.setSelectionRange(0, 0);
   });
+  await a.setViewportSize({ width: 390, height: 844 });
   await a
     .getByRole("button", { name: "Ghi âm cho Nội dung kịch bản", exact: true })
     .click();
@@ -156,6 +157,10 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Dừng & nhận dạng", exact: true })
     .click();
   await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
+  expect(
+    await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
+  await a.screenshot({ path: "test-results/voice-review.png", fullPage: true });
   await expect(a.locator("#script")).toHaveValue("Giữ bản gốc");
   expect(recordedType).toMatch(/^audio\/webm/);
   expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));

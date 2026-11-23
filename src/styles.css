@@ -1513,9 +1513,9 @@ select:focus {
   width: min(760px, calc(100vw - 24px));
   max-height: calc(100dvh - 32px);
   overflow: auto;
-  background: var(--panel, #191a1d);
+  background: var(--surface);
   color: inherit;
-  border: 1px solid #46403b;
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 24px;
 }
@@ -1547,11 +1547,24 @@ select:focus {
   min-height: 36px;
   padding: 6px 10px;
   margin: 6px 0;
-  color: #ff9c53;
+  color: var(--accent);
   font-size: 13px;
 }
 .voice-versions {
   margin-top: 18px;
+}
+.script-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#voice-version {
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px;
+  max-width: 100%;
 }
 @media (max-width: 600px) {
   #voice-dialog {

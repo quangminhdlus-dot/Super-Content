@@ -319,7 +319,12 @@ export function initVoice({
           selection = null;
           open(target);
         });
-        target.insertAdjacentElement("afterend", b);
+        const toolbar =
+          target.id === "script"
+            ? target.parentElement.querySelector(".script-toolbar")
+            : null;
+        if (toolbar) toolbar.append(b);
+        else target.insertAdjacentElement("afterend", b);
       });
   }
   attach();
