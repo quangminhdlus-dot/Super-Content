@@ -159,12 +159,12 @@ export function createVoiceService({
         .map((item) => item.text)
         .join(" ")
         .trim()
-        .replace(/^[\\s"“”'‘’]+|[\\s"“”'‘’]+$/gu, "");
+        .replace(/^[\s"“”'‘’]+|[\s"“”'‘’]+$/gu, "");
       if (
         result.status === "incomplete" ||
         !suggestion ||
         suggestion.length > 140 ||
-        suggestion.includes("\\n")
+        suggestion.includes("\n")
       )
         throw fail("VOICE_TITLE", "Chưa đề xuất được tiêu đề phù hợp. Nội dung vẫn được giữ nguyên.", 502);
       return { title: suggestion };
