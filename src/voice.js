@@ -1,5 +1,6 @@
 import { authorizeVoice, voiceRequest } from "./voice-client.js";
 import { createLiveDictation } from "./live-dictation.js";
+import { attachKeyboardAwareMic } from "./keyboard-aware-mic.js";
 import { createChunkedDictation, isAppleMobile } from "./chunked-dictation.js";
 import {
   AUDIO_TYPES,
@@ -28,6 +29,7 @@ export function initVoice({
   const button = (name) => q(`[data-voice=${name}]`);
   let session = null;
   const liveDictations = new Set();
+  const viewportDisposers = new Map();
   const stopInline = () => Promise.all([...liveDictations].map((editor) => Promise.resolve(editor.stop())));
   const cancelInline = () => { for (const editor of liveDictations) editor.abort(); };
   const formatTime = (seconds) =>
@@ -527,6 +529,8 @@ export function initVoice({
     for (const editor of liveDictations) {
       if (!editor.target.isConnected) {
         editor.abort();
+        viewportDisposers.get(editor)?.();
+        viewportDisposers.delete(editor);
         liveDictations.delete(editor);
       }
     }
@@ -596,6 +600,11 @@ export function initVoice({
             },
           });
           liveDictations.add(dictation);
+          // Safari shrinks and pans the visual viewport when the keyboard opens.
+          // Keep the mic just above the keyboard without changing the caret.
+          viewportDisposers.set(dictation, attachKeyboardAwareMic({
+            target, button: b,
+          }));
           b.addEventListener("click", (event) => {
             event.preventDefault();
             if (selection && !dictation.isActive()) {
