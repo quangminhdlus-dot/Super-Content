@@ -88,19 +88,19 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await expect(b.locator(".video-row")).toHaveCount(1);
   await b.locator(".video-main").click();
   await a.locator(".video-main").click();
-  await a.locator("#script").fill("Bản mới trên máy chủ");
+  await a.locator("#idea-content").fill("Bản mới trên máy chủ");
   await expect
-    .poll(() => [...server.values()][0].script)
+    .poll(() => [...server.values()][0].notes)
     .toBe("Bản mới trên máy chủ");
   failSecond = true;
-  await b.locator("#script").fill("Bản thiết bị chưa đồng bộ");
+  await b.locator("#idea-content").fill("Bản thiết bị chưa đồng bộ");
   await expect(b.locator("#save-state")).toContainText("Đã lưu");
   await expect(b.locator("[data-status]").first()).toContainText(
     "Chưa đồng bộ",
   );
   await b.reload();
   await b.locator(".video-main").click();
-  await expect(b.locator("#script")).toHaveValue("Bản thiết bị chưa đồng bộ");
+  await expect(b.locator("#idea-content")).toHaveValue("Bản thiết bị chưa đồng bộ");
   failSecond = false;
   await b.locator(".local-notice button").click();
   await expect(b.locator("[data-status]").first()).toContainText("xung đột");
@@ -110,15 +110,15 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Giữ bản thiết bị", exact: true })
     .click();
   await expect
-    .poll(() => [...server.values()][0].script)
+    .poll(() => [...server.values()][0].notes)
     .toBe("Bản thiết bị chưa đồng bộ");
   const other = await client("b@example.com");
   await expect(other.locator(".video-row")).toHaveCount(0);
   // Real Chromium MediaRecorder + authenticated client + existing autosave/sync path.
   await a.reload();
   await a.locator(".video-main").click();
-  await a.locator("#script").fill("Giữ bản gốc");
-  await expect.poll(() => [...server.values()][0].script).toBe("Giữ bản gốc");
+  await a.locator("#idea-content").fill("Giữ bản gốc");
+  await expect.poll(() => [...server.values()][0].notes).toBe("Giữ bản gốc");
   let recordedType, recordedBytes;
   await a.route("https://research-api.example/api/voice/**", async (route) => {
     expect(route.request().headers().authorization).toMatch(/^Bearer /);
@@ -151,13 +151,13 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
       await audio.resume();
       return destination.stream;
     };
-    const script = document.querySelector("#script");
+    const script = document.querySelector("#idea-content");
     script.focus();
     script.setSelectionRange(0, 0);
   });
   await a.setViewportSize({ width: 390, height: 844 });
   await a
-    .getByRole("button", { name: "Ghi âm cho Nội dung kịch bản", exact: true })
+    .getByRole("button", { name: "Ghi âm cho Nội dung ý tưởng", exact: true })
     .click();
   await a.getByRole("button", { name: "Bắt đầu ghi", exact: true }).click();
   // Wait for actual encoded data, not AudioContext time that may predate recording.
@@ -172,7 +172,7 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);
   await a.screenshot({ path: "test-results/voice-review.png", fullPage: true });
-  await expect(a.locator("#script")).toHaveValue("Giữ bản gốc");
+  await expect(a.locator("#idea-content")).toHaveValue("Giữ bản gốc");
   expect(recordedType).toMatch(/^audio\/webm/);
   expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));
   expect(
@@ -186,14 +186,14 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
     .getByRole("button", { name: "Chèn tại con trỏ", exact: true })
     .click();
   await expect
-    .poll(() => [...server.values()][0].script)
+    .poll(() => [...server.values()][0].notes)
     .toBe("Thêm ý này. Giữ bản gốc");
-  expect(await a.locator("#script").evaluate((el) => el.selectionStart)).toBe(
+  expect(await a.locator("#idea-content").evaluate((el) => el.selectionStart)).toBe(
     12,
   );
   await a.evaluate(() => window.voiceTestAudio.close());
   await a.reload();
   await a.locator(".video-main").click();
-  await expect(a.locator("#script")).toHaveValue("Thêm ý này. Giữ bản gốc");
+  await expect(a.locator("#idea-content")).toHaveValue("Thêm ý này. Giữ bản gốc");
   for (const context of clients) await context.close();
 });
