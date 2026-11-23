@@ -47,9 +47,11 @@ function makeIcon(size) {
     for (let x = 0; x < size; x++) {
       const sx = (x + 0.5) * 512 / size;
       const sy = (y + 0.5) * 512 / size;
-      const fill = insideRoundedRect(sx, sy) && !insidePlayTriangle(sx, sy)
-        ? ACCENT
-        : BACKGROUND;
+      const fill = !insideRoundedRect(sx, sy)
+        ? BACKGROUND
+        : insidePlayTriangle(sx, sy)
+          ? [255, 255, 255]
+          : ACCENT;
       const p = offset + 1 + x * 3;
       pixels[p] = fill[0];
       pixels[p + 1] = fill[1];
