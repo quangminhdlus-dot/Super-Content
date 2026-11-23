@@ -2322,7 +2322,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 }
 
 /* Compact, non-dismissible quick-idea saving indicator after Send. */
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] {
+#voice-dialog[data-voice-phase="processing"] {
   width: 104px;
   min-height: 104px;
   padding: 20px;
@@ -2331,12 +2331,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   background: var(--surface);
   box-shadow: 0 16px 55px #0005;
 }
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-heading,
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-recording-screen,
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-disclosure,
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-versions,
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] .voice-quick-actions { display: none !important; }
-#voice-dialog[data-voice-quick="true"][data-voice-phase="processing"] #voice-status {
+#voice-dialog[data-voice-phase="processing"] .voice-heading,
+#voice-dialog[data-voice-phase="processing"] .voice-recording-screen,
+#voice-dialog[data-voice-phase="processing"] .voice-disclosure,
+#voice-dialog[data-voice-phase="processing"] .voice-versions,
+#voice-dialog[data-voice-phase="processing"] .voice-quick-actions { display: none !important; }
+#voice-dialog[data-voice-phase="processing"] #voice-status {
   position: absolute;
   width: 1px;
   height: 1px;
