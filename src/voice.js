@@ -1,5 +1,6 @@
 import { authorizeVoice, voiceRequest } from "./voice-client.js";
 import { createLiveDictation } from "./live-dictation.js";
+import { createChunkedDictation, isAppleMobile } from "./chunked-dictation.js";
 import {
   AUDIO_TYPES,
   audioType,
@@ -27,7 +28,7 @@ export function initVoice({
   const button = (name) => q(`[data-voice=${name}]`);
   let session = null;
   const liveDictations = new Set();
-  const stopInline = () => { for (const editor of liveDictations) editor.stop(); };
+  const stopInline = () => Promise.all([...liveDictations].map((editor) => Promise.resolve(editor.stop())));
   const cancelInline = () => { for (const editor of liveDictations) editor.abort(); };
   const formatTime = (seconds) =>
     `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -580,10 +581,12 @@ export function initVoice({
           feedback.textContent = "Chạm micro để đọc thành chữ ngay trong ô.";
           if (toolbar) toolbar.insertAdjacentElement("afterend", feedback);
           else b.insertAdjacentElement("afterend", feedback);
-          const dictation = createLiveDictation({
+          const dictation = (isAppleMobile() ? createChunkedDictation : createLiveDictation)({
             target,
             button: b,
             status: feedback,
+            authorize,
+            transcribe: (audio, signal) => request("transcribe", audio, signal),
             onPreview: (el) => {
               if (el.id !== "idea-content") return;
               const counter = document.querySelector("#word-count");
