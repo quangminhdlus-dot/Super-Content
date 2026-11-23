@@ -71,13 +71,14 @@ test("suggests one concise Vietnamese title from a spoken idea without adding cl
       });
     },
   });
-  assert.deepEqual(await service.suggestTitle("Tôi muốn chia sẻ rằng thành công là quá trình cần nỗ lực."), {
-    title: "Thành công đòi hỏi nỗ lực bền bỉ",
-  });
+  const titleResult = await service.suggestTitle("Tôi muốn chia sẻ rằng thành công là quá trình cần nỗ lực.");
+  assert.equal(titleResult.title, "Thành công đòi hỏi nỗ lực bền bỉ");
+  assert.deepEqual(titleResult.alternatives, []);
+  assert.equal(titleResult.research.status, "unavailable");
   const input = JSON.parse(calls[0].options.body);
   assert.equal(input.model, "gpt-6.1-terra");
   assert.equal(input.store, false);
-  assert.match(input.instructions, /không thêm tình tiết/);
+  assert.match(input.instructions, /Cấm bịa/);
 });
 
 test("rejects mislabeled, empty and oversized audio; exposes no provider diagnostics", async () => {
