@@ -109,7 +109,7 @@ async function open(page) {
     page.getByRole("button", { name: "Dừng & nhận dạng", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Thử ghi lại", exact: true }),
+    page.getByRole("button", { name: "Ghi lại", exact: true }),
   ).toBeHidden();
 }
 async function record(page) {
@@ -141,7 +141,7 @@ for (const mp4 of [false, true])
       mp4 ? "audio/mp4" : "audio/webm;codecs=opus",
     );
     expect(await page.evaluate(() => window.stopped)).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "Hủy", exact: true }).click();
+    await page.getByRole("button", { name: "Đóng ghi âm", exact: true }).click();
     await expect(page.locator("#target")).toHaveValue("Đầu Cuối");
     expect(
       await page.locator("#target").evaluate((el) => el.selectionStart),
@@ -222,11 +222,11 @@ test("denied microphone, pending permission cancellation, automatic stop and con
     window.denied = false;
     window.delayPermission = true;
   });
-  await page.getByRole("button", { name: "Thử ghi lại", exact: true }).click();
+  await page.getByRole("button", { name: "Ghi lại", exact: true }).click();
   await expect
     .poll(() => page.evaluate(() => typeof window.grantPermission))
     .toBe("function");
-  await page.getByRole("button", { name: "Hủy", exact: true }).click();
+  await page.getByRole("button", { name: "Đóng ghi âm", exact: true }).click();
   await page.evaluate(() => {
     window.grantPermission();
     window.delayPermission = false;
