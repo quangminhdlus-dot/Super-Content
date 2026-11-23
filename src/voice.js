@@ -24,7 +24,7 @@ export function initVoice({
   const modal = document.createElement("dialog");
   modal.id = "voice-dialog";
   modal.setAttribute("aria-labelledby", "voice-title");
-  modal.innerHTML = "<div class=\"dialog-heading voice-heading\">\n  <h2 id=\"voice-title\">Ghi âm</h2>\n  <button type=\"button\" class=\"icon-button\" data-voice=\"cancel\" aria-label=\"Đóng ghi âm\" title=\"Đóng\">×</button>\n</div>\n<div class=\"voice-recording-screen\">\n  <div class=\"voice-orbit\" aria-hidden=\"true\">\n    <span class=\"voice-ring voice-ring-outer\"></span>\n    <span class=\"voice-ring voice-ring-inner\"></span>\n    <div class=\"voice-bars voice-bars-left\"><i></i><i></i><i></i><i></i></div>\n    <div class=\"voice-mic-core\">\n      <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n        <rect x=\"9\" y=\"2.5\" width=\"6\" height=\"12\" rx=\"3\"></rect>\n        <path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7\"></path>\n      </svg>\n    </div>\n    <div class=\"voice-bars voice-bars-right\"><i></i><i></i><i></i><i></i></div>\n  </div>\n  <div id=\"voice-clock\" class=\"voice-timer\" aria-label=\"Thời gian ghi âm\" hidden><span id=\"voice-elapsed\">0:00</span><span class=\"voice-timer-divider\"> / </span><span id=\"voice-limit\">2:00</span></div>\n  <div class=\"voice-controls voice-primary-controls\">\n  <button type=\"button\" class=\"voice-icon-action voice-delete\" data-voice=\"discard\" aria-label=\"Xóa bản ghi\" title=\"Xóa bản ghi\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 5l14 14M19 5L5 19\"></path></svg>\n  </button>\n  <button type=\"button\" class=\"voice-icon-action voice-pause\" data-voice=\"pause\" aria-label=\"Tạm dừng\" title=\"Tạm dừng\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><rect x=\"5\" y=\"4\" width=\"5\" height=\"16\" rx=\"1\"></rect><rect x=\"14\" y=\"4\" width=\"5\" height=\"16\" rx=\"1\"></rect></svg>\n  </button>\n  <button type=\"button\" class=\"voice-icon-action voice-send\" data-voice=\"send\" aria-label=\"Gửi bản ghi\" title=\"Gửi bản ghi\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 3L10 14M21 3l-6 18-4-8-8-4 18-6\"></path></svg>\n  </button>\n  <button type=\"button\" class=\"voice-restart\" data-voice=\"start\" hidden>Ghi lại</button>\n  <button type=\"button\" data-voice=\"retry\" hidden>Thử lại</button>\n</div>\n</div>\n<p role=\"status\" id=\"voice-status\" aria-live=\"polite\"></p>\n<details class=\"voice-disclosure\"><summary>Thông tin xử lý</summary><p>Đoạn ghi âm và bản chép được gửi đến OpenAI để xử lý. Ứng dụng không lưu âm thanh trên máy chủ.</p></details>\n<div class=\"voice-versions\" hidden>\n  <label class=\"field\">Bản chép gốc<textarea id=\"voice-original\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Bản đã trau chuốt<textarea id=\"voice-polished\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Chọn bản để dùng<select id=\"voice-version\"><option value=\"original\">Bản chép gốc</option><option value=\"polished\" disabled>Bản đã trau chuốt</option></select></label>\n  <p class=\"muted\">Đọc lại tên riêng, số liệu và trích dẫn trước khi dùng. Chèn giữ nguyên nội dung hiện có; thay thế cần xác nhận.</p>\n  <div class=\"voice-controls\"><button type=\"button\" class=\"primary\" data-voice=\"insert\">Chèn tại con trỏ</button><button type=\"button\" data-voice=\"replace\">Thay thế toàn bộ ô</button></div>\n</div>\n<div class=\"voice-quick-actions\" hidden><button type=\"button\" class=\"primary\" data-voice=\"openquick\">Mở trong Kho ý tưởng</button><button type=\"button\" data-voice=\"toscript\">Lưu vào kịch bản</button></div>";
+  modal.innerHTML = "<div class=\"dialog-heading voice-heading\">\n  <h2 id=\"voice-title\">Ghi âm</h2>\n  <button type=\"button\" class=\"icon-button\" data-voice=\"cancel\" aria-label=\"Đóng ghi âm\" title=\"Đóng\">×</button>\n</div>\n<div class=\"voice-saving-indicator\" role=\"img\" aria-label=\"Đang lưu ý tưởng\" hidden><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 16.5a4 4 0 0 1 1.6-7.6A7 7 0 0 1 19 9.5a4 4 0 0 1 .5 7.7\"/><path d=\"M12 10v9m-3-3 3 3 3-3\"/></svg><span class=\"voice-saving-spinner\" aria-hidden=\"true\"></span></div>\n<div class=\"voice-recording-screen\">\n  <div class=\"voice-orbit\" aria-hidden=\"true\">\n    <span class=\"voice-ring voice-ring-outer\"></span>\n    <span class=\"voice-ring voice-ring-inner\"></span>\n    <div class=\"voice-bars voice-bars-left\"><i></i><i></i><i></i><i></i></div>\n    <div class=\"voice-mic-core\">\n      <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n        <rect x=\"9\" y=\"2.5\" width=\"6\" height=\"12\" rx=\"3\"></rect>\n        <path d=\"M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5v4M8.5 21.5h7\"></path>\n      </svg>\n    </div>\n    <div class=\"voice-bars voice-bars-right\"><i></i><i></i><i></i><i></i></div>\n  </div>\n  <div id=\"voice-clock\" class=\"voice-timer\" aria-label=\"Thời gian ghi âm\" hidden><span id=\"voice-elapsed\">0:00</span><span class=\"voice-timer-divider\"> / </span><span id=\"voice-limit\">2:00</span></div>\n  <div class=\"voice-controls voice-primary-controls\">\n  <button type=\"button\" class=\"voice-icon-action voice-delete\" data-voice=\"discard\" aria-label=\"Xóa bản ghi\" title=\"Xóa bản ghi\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M5 5l14 14M19 5L5 19\"></path></svg>\n  </button>\n  <button type=\"button\" class=\"voice-icon-action voice-pause\" data-voice=\"pause\" aria-label=\"Tạm dừng\" title=\"Tạm dừng\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><rect x=\"5\" y=\"4\" width=\"5\" height=\"16\" rx=\"1\"></rect><rect x=\"14\" y=\"4\" width=\"5\" height=\"16\" rx=\"1\"></rect></svg>\n  </button>\n  <button type=\"button\" class=\"voice-icon-action voice-send\" data-voice=\"send\" aria-label=\"Gửi bản ghi\" title=\"Gửi bản ghi\" hidden>\n    <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 3L10 14M21 3l-6 18-4-8-8-4 18-6\"></path></svg>\n  </button>\n  <button type=\"button\" class=\"voice-restart\" data-voice=\"start\" hidden>Ghi lại</button>\n  <button type=\"button\" data-voice=\"retry\" hidden>Thử lại</button>\n</div>\n</div>\n<p role=\"status\" id=\"voice-status\" aria-live=\"polite\"></p>\n<details class=\"voice-disclosure\"><summary>Thông tin xử lý</summary><p>Đoạn ghi âm và bản chép được gửi đến OpenAI để xử lý. Ứng dụng không lưu âm thanh trên máy chủ.</p></details>\n<div class=\"voice-versions\" hidden>\n  <label class=\"field\">Bản chép gốc<textarea id=\"voice-original\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Bản đã trau chuốt<textarea id=\"voice-polished\" rows=\"6\" readonly></textarea></label>\n  <label class=\"field\">Chọn bản để dùng<select id=\"voice-version\"><option value=\"original\">Bản chép gốc</option><option value=\"polished\" disabled>Bản đã trau chuốt</option></select></label>\n  <p class=\"muted\">Đọc lại tên riêng, số liệu và trích dẫn trước khi dùng. Chèn giữ nguyên nội dung hiện có; thay thế cần xác nhận.</p>\n  <div class=\"voice-controls\"><button type=\"button\" class=\"primary\" data-voice=\"insert\">Chèn tại con trỏ</button><button type=\"button\" data-voice=\"replace\">Thay thế toàn bộ ô</button></div>\n</div>\n<div class=\"voice-quick-actions\" hidden><button type=\"button\" class=\"primary\" data-voice=\"openquick\">Mở trong Kho ý tưởng</button><button type=\"button\" data-voice=\"toscript\">Lưu vào kịch bản</button></div>";
   const q = (selector) => modal.querySelector(selector);
   const button = (name) => q(`[data-voice=${name}]`);
   let session = null;
@@ -38,6 +38,8 @@ export function initVoice({
   const resumeSymbol = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5a1 1 0 0 1 1.5-.86l11 7.5a1 1 0 0 1 0 1.72l-11 7.5A1 1 0 0 1 7 19.5z"></path></svg>';
   const setPhase = (phase) => {
     modal.dataset.voicePhase = phase;
+    q(".voice-saving-indicator").hidden = phase !== "processing";
+    button("cancel").hidden = phase === "processing" || (session?.quick && phase === "error");
     q("#voice-clock").hidden = !["recording", "paused", "ready"].includes(phase);
     q(".voice-orbit").hidden = phase === "processing" || phase === "review";
   };
@@ -141,8 +143,9 @@ export function initVoice({
     s.audio = null;
     s.chunks = [];
   }
-  function close({ discard = false, skipQuickClosed = false } = {}) {
+  function close({ discard = false, skipQuickClosed = false, completed = false } = {}) {
     const s = session;
+    if ((modal.dataset.voicePhase === "processing" || (s?.quick && modal.dataset.voicePhase === "error")) && !completed) return false;
     if (s?.quick && !s.savedId && !discard &&
         (s.original || s.audio || s.bytes > 0 ||
          ["recording", "paused", "ready", "processing"].includes(modal.dataset.voicePhase)) &&
@@ -179,6 +182,7 @@ export function initVoice({
       quick,
     };
     session = s;
+    modal.dataset.voiceQuick = String(quick);
     button("insert").textContent = "Chèn tại con trỏ";
     button("insert").hidden = quick;
     button("replace").hidden = quick;
@@ -276,7 +280,7 @@ export function initVoice({
       if (s.quick) {
         // The original was already saved as a safety checkpoint. The polished
         // version is now stored; return to the ideas inbox without another tap.
-        close();
+        close({ completed: true });
         return;
       }
       if (s.target.isConnected && s.target.value === s.before) {
@@ -513,6 +517,12 @@ export function initVoice({
     if (!document.hidden) return;
     stopInline();
     if (session && session.recorder?.state === "recording") pauseOrResume(session);
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (session && (modal.dataset.voicePhase === "processing" || (session.quick && modal.dataset.voicePhase === "error"))) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
   });
   window.addEventListener("pagehide", () => {
     stopInline();
