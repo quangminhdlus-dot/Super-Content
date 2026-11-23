@@ -361,6 +361,8 @@ function addModal() {
 
   dialog.querySelector("#add-form").onsubmit = async (ev) => {
     ev.preventDefault();
+    // Preserve the currently visible interim words before saving the new idea.
+    voice.stopInline();
     const form = ev.currentTarget;
     const title = form.elements.title.value.trim();
     const content = form.elements.content.value.trim();
@@ -1025,6 +1027,7 @@ document.addEventListener("click", async (ev) => {
           settings();
           break;
         case "close":
+          voice.stopInline();
           dialog.close();
           break;
         case "back":
