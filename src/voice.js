@@ -1,4 +1,5 @@
 import { authorizeVoice, voiceRequest } from "./voice-client.js";
+import { createLiveDictation } from "./live-dictation.js";
 import {
   AUDIO_TYPES,
   audioType,
@@ -25,6 +26,9 @@ export function initVoice({
   const q = (selector) => modal.querySelector(selector);
   const button = (name) => q(`[data-voice=${name}]`);
   let session = null;
+  const liveDictations = new Set();
+  const stopInline = () => { for (const editor of liveDictations) editor.stop(); };
+  const cancelInline = () => { for (const editor of liveDictations) editor.abort(); };
   const formatTime = (seconds) =>
     `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   const pauseSymbol = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1"></rect><rect x="14" y="4" width="5" height="16" rx="1"></rect></svg>';
@@ -157,6 +161,7 @@ export function initVoice({
   }
 
   async function open(target, { quick = false } = {}) {
+    cancelInline();
     if (session && !close()) return;
     const s = {
       target,
@@ -511,12 +516,21 @@ export function initVoice({
     attach();
   });
   function attach() {
+    // Stop any live recognition session whose editor was removed by navigation
+    // or a cloud refresh, so no delayed transcript can be written to stale DOM.
+    for (const editor of liveDictations) {
+      if (!editor.target.isConnected) {
+        editor.abort();
+        liveDictations.delete(editor);
+      }
+    }
     root
       .querySelectorAll("textarea:not([readonly]):not([name=titles])")
       .forEach((target) => {
         if (target.closest("#voice-dialog") || target.dataset.voiceBound)
           return;
         target.dataset.voiceBound = "true";
+        const inline = ["new-idea-content", "idea-content"].includes(target.id);
         const b = document.createElement("button");
         b.type = "button";
         b.className = "voice-mic";
@@ -527,38 +541,78 @@ export function initVoice({
         if (target.id === "new-idea-content") {
           b.textContent = "🎙";
           b.classList.add("voice-icon-only");
-          b.title = "Ghi âm nội dung ý tưởng";
+        } else if (inline) {
+          b.textContent = "🎙 Đọc thành chữ";
         } else {
           b.textContent = "🎙 Ghi âm";
         }
-        b.setAttribute("aria-label", `Ghi âm cho ${label}`);
-        // Keep the selection before the button takes focus, including Safari touch interaction.
+        b.setAttribute("aria-label", inline
+          ? "Bắt đầu nhập giọng nói cho Nội dung ý tưởng"
+          : `Ghi âm cho ${label}`);
+        // Preserve the caret before an iPhone tap shifts focus to the button.
         let selection;
         b.addEventListener("pointerdown", () => {
-          selection = [
-            target.selectionStart,
-            target.selectionEnd,
-            target.scrollTop,
-          ];
+          selection = [target.selectionStart, target.selectionEnd, target.scrollTop];
         });
-        b.addEventListener("click", (event) => {
-          event.preventDefault();
-          if (selection) {
-            target.setSelectionRange(selection[0], selection[1]);
-            target.scrollTop = selection[2];
-          }
-          selection = null;
-          open(target);
-        });
-        const toolbar =
-          ["script", "idea-content"].includes(target.id)
-            ? target.parentElement.querySelector(".script-toolbar")
-            : null;
+        const toolbar = ["script", "idea-content"].includes(target.id)
+          ? target.parentElement.querySelector(".script-toolbar")
+          : null;
         if (toolbar) toolbar.append(b);
         else target.insertAdjacentElement("afterend", b);
+        if (inline) {
+          const feedback = document.createElement("small");
+          feedback.className = "live-dictation-status";
+          feedback.setAttribute("role", "status");
+          feedback.setAttribute("aria-live", "polite");
+          feedback.textContent = "Chạm micro để đọc thành chữ ngay trong ô.";
+          if (toolbar) toolbar.insertAdjacentElement("afterend", feedback);
+          else b.insertAdjacentElement("afterend", feedback);
+          const dictation = createLiveDictation({
+            target,
+            button: b,
+            status: feedback,
+            onPreview: (el) => {
+              if (el.id !== "idea-content") return;
+              const counter = document.querySelector("#word-count");
+              if (counter)
+                counter.textContent = (el.value.trim()
+                  ? el.value.trim().split(/\s+/).length : 0) + " từ";
+            },
+          });
+          liveDictations.add(dictation);
+          b.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (selection && !dictation.isActive()) {
+              target.setSelectionRange(selection[0], selection[1]);
+              target.scrollTop = selection[2];
+            }
+            selection = null;
+            // Only one microphone session is allowed at a time.
+            for (const editor of liveDictations) {
+              if (editor !== dictation && editor.isActive()) editor.abort();
+            }
+            dictation.toggle();
+          });
+        } else {
+          b.addEventListener("click", (event) => {
+            event.preventDefault();
+            if (selection) {
+              target.setSelectionRange(selection[0], selection[1]);
+              target.scrollTop = selection[2];
+            }
+            selection = null;
+            open(target);
+          });
+        }
       });
   }
   attach();
   observer.observe(root, { childList: true, subtree: true });
-  return { cancel: close, open, isActive: () => !!session && modal.open };
+  return {
+    cancel: () => { cancelInline(); return close(); },
+    stopInline,
+    open,
+    isActive: () => (!!session && modal.open) ||
+      [...liveDictations].some((editor) => editor.isActive()),
+  };
 }
