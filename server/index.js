@@ -56,7 +56,9 @@ export function createResearchServer({
         ? "transcribe"
         : req.url === "/api/voice/polish"
           ? "polish"
-          : null;
+          : req.url === "/api/voice/title"
+            ? "title"
+            : null;
     const step = req.url?.match(
       /^\/api\/research\/jobs\/([0-9a-f-]{36})\/step$/,
     );
@@ -149,7 +151,9 @@ export function createResearchServer({
                 "Dữ liệu biên tập không hợp lệ.",
               );
             }
-            result = await voice.polish(input?.original, controller.signal);
+            result = voiceOperation === "title"
+              ? await voice.suggestTitle(input?.original, controller.signal)
+              : await voice.polish(input?.original, controller.signal);
           }
           if (!controller.signal.aborted) reply(200, result);
         } finally {
