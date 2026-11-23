@@ -2297,7 +2297,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 
 /* iPhone/iPad keyboard-aware dictation.
    Dynamic top tracks visualViewport (not layout viewport) while keyboard is up. */
-@media (max-width: 800px) {
+@media (max-width: 800px), (pointer: coarse) {
   .idea-dictation-float.voice-mic.keyboard-mic-visible,
   #dialog .idea-create-form > .voice-icon-only.keyboard-mic-visible {
     position: fixed;
