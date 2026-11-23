@@ -485,7 +485,8 @@ export function initVoice({
   });
   window.addEventListener("pagehide", close);
   const observer = new MutationObserver(() => {
-    if (session && !session.target.isConnected) close();
+    // UI changes may temporarily remove the original textarea (e.g. live sync).
+    // Retain the recording; insertion already checks target.isConnected before editing.
     attach();
   });
   function attach() {
@@ -538,5 +539,5 @@ export function initVoice({
   }
   attach();
   observer.observe(root, { childList: true, subtree: true });
-  return { cancel: close, open };
+  return { cancel: close, open, isActive: () => !!session && modal.open };
 }

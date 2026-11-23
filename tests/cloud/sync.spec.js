@@ -220,6 +220,23 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await a.getByRole("button", { name: "Ghi ý tưởng nhanh" }).click();
   await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
   await expect(a.locator("#voice-limit")).toHaveText("10:00");
+  // Regression: background cloud sync must never discard an ongoing recording.
+  await a.evaluate(() => {
+    window.unexpectedVoiceDiscardPrompts = 0;
+    const previousConfirm = window.confirm.bind(window);
+    window.confirm = (msg) => {
+      if (String(msg).includes("Bản ghi chưa được lưu")) {
+        window.unexpectedVoiceDiscardPrompts++;
+        return false;
+      }
+      return previousConfirm(msg);
+    };
+    window.dispatchEvent(new Event("online"));
+  });
+  await a.waitForTimeout(1800);
+  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
+  expect(await a.locator("#quick-idea-content").evaluate((el) => el.isConnected)).toBe(true);
+  expect(await a.evaluate(() => window.unexpectedVoiceDiscardPrompts)).toBe(0);
   await expect.poll(() => a.evaluate(() => window.voiceTestBytes)).toBeGreaterThan(beforeQuick);
   await a.getByRole("button", { name: "Gửi bản ghi" }).click();
   await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");

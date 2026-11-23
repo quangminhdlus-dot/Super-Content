@@ -218,6 +218,26 @@ test("network retries keep audio; polish failure keeps original without transcri
     .click();
   await expect(page.locator("#target")).toHaveValue("ừ nội dung gốc");
 });
+test("replacing editor DOM during recording never asks to discard unsent audio", async ({ page }) => {
+  await setup(page);
+  await open(page);
+  await page.evaluate(() => {
+    window.unexpectedDiscardPrompts = 0;
+    window.confirm = () => {
+      window.unexpectedDiscardPrompts++;
+      return false;
+    };
+    document.querySelector("#target").remove();
+  });
+  await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
+  expect(await page.evaluate(() => window.unexpectedDiscardPrompts)).toBe(0);
+  await page.getByRole("button", { name: "Gửi bản ghi" }).click();
+  await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
+  await expect(page.locator("#voice-status")).toContainText("Ô nội dung đã thay đổi", { timeout: 1_500 }).catch(() => {});
+  // The transcript stays available in the dialog for copying even though the editor changed.
+  await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
+  await page.getByRole("button", { name: "Đóng ghi âm" }).click();
+});
 test("delete X discards recording without sending or inserting it", async ({ page }) => {
   await setup(page);
   await open(page);
