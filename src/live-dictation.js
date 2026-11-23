@@ -115,6 +115,7 @@ export function createLiveDictation({
       stopping: false,
       stopTimer: null,
       hadResult: false,
+      lastFinal: "",
       error: "",
     };
     // If a selection existed, replacing it with recognized text is intentional;
@@ -142,7 +143,12 @@ export function createLiveDictation({
       const words = [...finals, ...interim].join(" ");
       if (!words) return;
       s.hadResult = true;
-      applySpeech(s, words, finals.length > 0);
+      const finalText = finals.join(" ");
+      const newFinal = finalText !== s.lastFinal && finalText.length > 0;
+      s.lastFinal = finalText;
+      // Interim text is visible immediately, but only new final chunks trigger
+      // autosave; this prevents excessive DB writes and cloud sync requests.
+      applySpeech(s, words, newFinal);
       if (current === s && !s.stopping)
         setStatus(interim.length ? "Đang nhận lời nói thành chữ…" : "Đang nghe…");
     };
