@@ -244,6 +244,7 @@ if (
       key: OPENAI_API_KEY,
       transcribeModel: process.env.OPENAI_TRANSCRIBE_MODEL,
       editModel: process.env.OPENAI_VOICE_EDIT_MODEL,
+      youtubeKey: YOUTUBE_API_KEY,
     });
     const server = createResearchServer({
       voice,
