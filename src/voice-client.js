@@ -53,7 +53,7 @@ export async function voiceRequest(operation, body, signal) {
         result?.error || "Chưa xử lý được đoạn ghi âm. Thử lại sau.",
       );
     const value =
-      operation === "transcribe" ? result?.original : result?.polished;
+      operation === "transcribe" ? result?.original : operation === "title" ? result?.title : result?.polished;
     if (
       typeof value !== "string" ||
       !value.trim() ||
