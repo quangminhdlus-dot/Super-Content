@@ -38,8 +38,8 @@ export function initVoice({
   const resumeSymbol = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5a1 1 0 0 1 1.5-.86l11 7.5a1 1 0 0 1 0 1.72l-11 7.5A1 1 0 0 1 7 19.5z"></path></svg>';
   const setPhase = (phase) => {
     modal.dataset.voicePhase = phase;
-    q(".voice-saving-indicator").hidden = !(session?.quick && phase === "processing");
-    button("cancel").hidden = !!session?.quick && ["processing", "error"].includes(phase);
+    q(".voice-saving-indicator").hidden = phase !== "processing";
+    button("cancel").hidden = phase === "processing" || (session?.quick && phase === "error");
     q("#voice-clock").hidden = !["recording", "paused", "ready"].includes(phase);
     q(".voice-orbit").hidden = phase === "processing" || phase === "review";
   };
@@ -145,7 +145,7 @@ export function initVoice({
   }
   function close({ discard = false, skipQuickClosed = false, completed = false } = {}) {
     const s = session;
-    if (s?.quick && ["processing", "error"].includes(modal.dataset.voicePhase) && !completed) return false;
+    if ((modal.dataset.voicePhase === "processing" || (s?.quick && modal.dataset.voicePhase === "error")) && !completed) return false;
     if (s?.quick && !s.savedId && !discard &&
         (s.original || s.audio || s.bytes > 0 ||
          ["recording", "paused", "ready", "processing"].includes(modal.dataset.voicePhase)) &&
@@ -519,7 +519,7 @@ export function initVoice({
     if (session && session.recorder?.state === "recording") pauseOrResume(session);
   });
   window.addEventListener("beforeunload", (event) => {
-    if (session?.quick && ["processing", "error"].includes(modal.dataset.voicePhase)) {
+    if (session && (modal.dataset.voicePhase === "processing" || (session.quick && modal.dataset.voicePhase === "error"))) {
       event.preventDefault();
       event.returnValue = "";
     }
