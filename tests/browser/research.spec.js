@@ -129,7 +129,7 @@ test("research settings persist; proposals remain separate and selected imports 
   await expect(page.locator(".research-provenance")).toContainText(
     "Bổ sung dữ liệu thực tế riêng.",
   );
-  await page.locator("#script").fill("Giữ nguyên kịch bản đã viết");
+  await page.locator("#idea-content").fill("Giữ nguyên kịch bản đã viết");
   await expect(page.locator("#save-state")).toContainText("Đã lưu");
   await page.getByRole("button", { name: "Danh sách", exact: true }).click();
   // Simulate a repeated recommendation receipt; reimport must not replace the existing record.
@@ -170,7 +170,7 @@ test("research settings persist; proposals remain separate and selected imports 
     .click();
   await expect(page.locator(".video-row")).toHaveCount(2);
   await page.locator(".video-main").first().click();
-  await expect(page.locator("#script")).toHaveValue(
+  await expect(page.locator("#idea-content")).toHaveValue(
     "Giữ nguyên kịch bản đã viết",
   );
   expect(errors).toEqual([]);
