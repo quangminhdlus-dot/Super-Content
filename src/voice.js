@@ -507,9 +507,14 @@ export function initVoice({
     if (session && !modal.open) close();
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && session && session.recorder?.state === "recording") pauseOrResume(session);
+    if (!document.hidden) return;
+    stopInline();
+    if (session && session.recorder?.state === "recording") pauseOrResume(session);
   });
-  window.addEventListener("pagehide", close);
+  window.addEventListener("pagehide", () => {
+    stopInline();
+    close();
+  });
   const observer = new MutationObserver(() => {
     // UI changes may temporarily remove the original textarea (e.g. live sync).
     // Retain the recording; insertion already checks target.isConnected before editing.
