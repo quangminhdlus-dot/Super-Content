@@ -31,12 +31,18 @@ export function createLiveDictation({
     if (!target.isConnected || target.value === s.lastCommitted) return;
     s.lastCommitted = target.value;
     s.dispatching = true;
-    target.dispatchEvent(new Event("input", { bubbles: true }));
-    s.dispatching = false;
+    try {
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    } finally {
+      s.dispatching = false;
+    }
   }
   function release(s, message = "") {
     if (current !== s) return;
     current = null;
+    window.clearTimeout(s.startTimer);
+    window.clearTimeout(s.watchdog);
+    window.clearTimeout(s.stopTimer);
     setButton(false);
     commit(s);
     if (message) setStatus(message);
@@ -47,6 +53,9 @@ export function createLiveDictation({
     // Invalidate callbacks first: a late interim response must never overwrite
     // text typed by the user or changes received from another device.
     current = null;
+    window.clearTimeout(s.startTimer);
+    window.clearTimeout(s.watchdog);
+    window.clearTimeout(s.stopTimer);
     try { s.engine.abort(); } catch {}
     setButton(false);
     if (target.value === s.before + s.inserted + s.after) commit(s);
@@ -54,21 +63,14 @@ export function createLiveDictation({
   }
   function stop() {
     const s = current;
-    if (!s) return;
-    if (s.stopping) return;
-    s.stopping = true;
-    // Persist the currently visible interim phrase immediately; navigation
-    // or form submission may remove the textarea before speechend arrives.
-    commit(s);
-    setStatus("Đang hoàn tất câu cuối…");
-    try {
-      s.engine.stop();
-      // Some Safari implementations omit end after a paused recognition.
-      if (current === s)
-        s.stopTimer = window.setTimeout(() => release(s, "Đã dừng. Chạm micro để đọc tiếp."), 1800);
-    } catch {
-      release(s, "Đã dừng. Chạm micro để đọc tiếp.");
+    if (!s) return Promise.resolve();
+    // WebKit may never emit onend. Restore controls immediately and persist
+    // any visible interim words; late results cannot overwrite the editor.
+    release(s, "Đã dừng. Chạm micro để đọc tiếp.");
+    try { s.engine.stop(); } catch {
+      try { s.engine.abort(); } catch {}
     }
+    return Promise.resolve();
   }
   function applySpeech(s, speech, hasFinal) {
     if (current !== s || !target.isConnected) {
@@ -92,7 +94,8 @@ export function createLiveDictation({
   }
   function start() {
     if (current) return;
-    const Constructor = recognitionFactory();
+    let Constructor;
+    try { Constructor = recognitionFactory(); } catch { Constructor = null; }
     if (!Constructor || !window.isSecureContext) {
       setStatus("Trình duyệt chưa hỗ trợ đọc thành chữ trực tiếp. Anh có thể dùng micro trên bàn phím điện thoại.");
       target.focus();
@@ -121,6 +124,9 @@ export function createLiveDictation({
       hadResult: false,
       lastFinal: "",
       error: "",
+      startTimer: null,
+      watchdog: null,
+      started: false,
     };
     // If a selection existed, replacing it with recognized text is intentional;
     // the empty preview doesn't erase the selection until the first result.
@@ -132,7 +138,15 @@ export function createLiveDictation({
     setButton(true);
     setStatus("Đang mở micro… Chữ sẽ xuất hiện ngay khi anh nói.");
     engine.onstart = () => {
-      if (current === s) setStatus("Đang nghe… Anh có thể nói tiếng Việt.");
+      if (current !== s) return;
+      s.started = true;
+      window.clearTimeout(s.startTimer);
+      setStatus("Đang nghe… Anh có thể nói tiếng Việt.");
+      // If Safari keeps its mic indicator active with no speech events, fail
+      // closed instead of trapping the user in a permanent recording state.
+      s.watchdog = window.setTimeout(() => abort({
+        reason: "Micro không nhận được chữ. Đã dừng an toàn, thử lại hoặc dùng micro bàn phím.",
+      }), 23000);
     };
     engine.onresult = (event) => {
       if (current !== s) return;
@@ -147,6 +161,10 @@ export function createLiveDictation({
       const words = [...finals, ...interim].join(" ");
       if (!words) return;
       s.hadResult = true;
+      window.clearTimeout(s.watchdog);
+      s.watchdog = window.setTimeout(() => abort({
+        reason: "Micro không phản hồi. Đã dừng an toàn; nội dung đang viết vẫn được giữ.",
+      }), 30000);
       const finalText = finals.join(" ");
       const newFinal = finalText !== s.lastFinal && finalText.length > 0;
       s.lastFinal = finalText;
@@ -170,6 +188,8 @@ export function createLiveDictation({
       } else if (code !== "aborted") {
         s.error = "Nhận dạng giọng nói bị gián đoạn. Chạm micro để đọc tiếp.";
       }
+      // Some browsers emit onerror but never onend: unlock immediately.
+      abort({ reason: s.error || "Micro đã dừng. Anh có thể thử lại." });
     };
     engine.onend = () => {
       window.clearTimeout(s.stopTimer);
@@ -182,6 +202,11 @@ export function createLiveDictation({
     try {
       // Must run synchronously inside the user's click gesture on iPhone.
       engine.start();
+      if (!s.started) s.startTimer = window.setTimeout(() => {
+        if (current === s) abort({
+          reason: "Micro không khởi động trong 10 giây. Đã thoát an toàn; hãy thử lại.",
+        });
+      }, 10000);
     } catch (error) {
       release(s, "Không thể bật micro: " + (error.message || "hãy thử lại."));
     }

@@ -2247,3 +2247,23 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   z-index:2;
 }
 #dialog .idea-create-form > .voice-icon-only:hover { background:#0759dd; }
+
+
+/* iOS dictation fallback: obvious, always-tappable STOP button.
+   No blocking overlay or disabled editor controls. */
+.idea-dictation-float.voice-mic.dictation-active {
+  width:90px;
+  border-radius:20px;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:0;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+#dialog .idea-create-form > .voice-icon-only.dictation-active {
+  width:90px;
+  font-size:14px;
+  font-weight:700;
+  border-radius:19px;
+  touch-action:manipulation;
+}

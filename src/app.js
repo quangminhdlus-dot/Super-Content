@@ -317,9 +317,9 @@ async function moveCurrentIdeaToScript(button) {
   const id = editing;
   if (!id) return;
   // Finish interim dictation and enqueue the currently visible text.
-  voice.stopInline();
   if (button) button.disabled = true;
   try {
+    await voice.stopInline();
     await writeChain;
     const latest = videos().find((v) => v.id === id);
     if (!latest || latest.stage !== "ideas") {
@@ -388,7 +388,7 @@ function addModal() {
   dialog.querySelector("#add-form").onsubmit = async (ev) => {
     ev.preventDefault();
     // Preserve the currently visible interim words before saving the new idea.
-    voice.stopInline();
+    await voice.stopInline();
     const form = ev.currentTarget;
     const title = form.elements.title.value.trim();
     const content = form.elements.content.value.trim();
@@ -972,7 +972,7 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   try {
     if (b.dataset.view) {
-      voice.stopInline();
+      await voice.stopInline();
       await writeChain;
       view = b.dataset.view;
       editing = null;
@@ -981,7 +981,8 @@ document.addEventListener("click", async (ev) => {
       dialog.close();
       render();
     } else if (b.dataset.open) {
-      voice.stopInline();
+      await voice.stopInline();
+      await writeChain;
       editing = b.dataset.open;
       selected.clear();
       render();
@@ -1058,11 +1059,11 @@ document.addEventListener("click", async (ev) => {
           settings();
           break;
         case "close":
-          voice.stopInline();
+          voice.abortInline();
           dialog.close();
           break;
         case "back":
-          voice.stopInline();
+          await voice.stopInline();
           await writeChain;
           editing = null;
           render();
