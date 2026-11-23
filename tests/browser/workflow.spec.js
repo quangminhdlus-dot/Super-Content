@@ -204,21 +204,21 @@ test("storage failure does not claim success and keeps the unsaved script on scr
       throw new DOMException("Quota exceeded", "QuotaExceededError");
     };
   });
-  await page.locator("#script").fill("Không được xóa bản viết này");
+  await page.locator("#idea-content").fill("Không được xóa bản viết này");
   await expect(page.locator("#save-state")).toContainText("Lưu thất bại");
-  await expect(page.locator("#script")).toHaveValue(
+  await expect(page.locator("#idea-content")).toHaveValue(
     "Không được xóa bản viết này",
   );
   await page.evaluate(() => {
     IDBObjectStore.prototype.put = window.originalPut;
   });
   await page
-    .locator("#script")
+    .locator("#idea-content")
     .fill("Không được xóa bản viết này — thử lưu lại");
   await expect(page.locator("#save-state")).toContainText("Đã lưu");
   await page.reload();
   await page.locator(".video-main").first().click();
-  await expect(page.locator("#script")).toHaveValue(
+  await expect(page.locator("#idea-content")).toHaveValue(
     "Không được xóa bản viết này — thử lưu lại",
   );
 });
