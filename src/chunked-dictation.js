@@ -35,7 +35,7 @@ export function createChunkedDictation({
     button.setAttribute("aria-label",
       (active ? "Dừng" : "Bắt đầu") + " nhập giọng nói cho Nội dung ý tưởng");
     button.title = active ? "Dừng đọc thành chữ" : "Đọc thành chữ";
-    button.textContent = active ? "■" : "🎙";
+    button.textContent = active ? "■ Dừng" : "🎙";
   };
   const stopTracks = (s) => {
     if (!s.stream) return;
@@ -74,11 +74,14 @@ export function createChunkedDictation({
     const inserted = (before && !/\s$/u.test(before) ? " " : "") + words +
       (after && !/^[\s,.!?;:]/u.test(after) ? " " : "");
     s.applying = true;
-    target.value = before + inserted + after;
-    s.cursor = point + inserted.length;
-    target.dispatchEvent(new Event("input", { bubbles: true }));
-    s.applying = false;
-    onPreview(target);
+    try {
+      target.value = before + inserted + after;
+      s.cursor = point + inserted.length;
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+      onPreview(target);
+    } finally {
+      s.applying = false;
+    }
   }
   function maybeFinish(s) {
     if (s.completed) return;
@@ -110,6 +113,9 @@ export function createChunkedDictation({
       } finally {
         clearTimeout(timeout);
       }
+    }).catch((error) => {
+      if (!s.completed) fail(s, "Đã dừng an toàn vì lỗi lưu chữ: " +
+        (error?.message || "không rõ lỗi") + ".");
     }).finally(() => {
       s.pending--;
       if (!s.completed && !s.stopping && !s.recorder && s.pending < 2)
