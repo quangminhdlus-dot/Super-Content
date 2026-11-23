@@ -243,7 +243,8 @@ export function initVoice({
         s.original = await request("transcribe", s.audio, s.controller.signal);
         if (session !== s) return;
         q("#voice-original").value = s.original;
-        q(".voice-versions").hidden = false;
+        // Skip transcript selection during normal processing.
+        q(".voice-versions").hidden = true;
         s.audio = null;
       }
       if (s.quick && !s.savedId) {
@@ -252,29 +253,49 @@ export function initVoice({
         s.savedId = await onQuickTranscript(s.original);
         if (session !== s) return;
         if (!s.savedId) throw new Error("Chưa lưu được ý tưởng. Hãy thử lại.");
-        q(".voice-quick-actions").hidden = false;
       }
       if (!s.polished) {
-        message(s.quick ? "Đã lưu bản chép gốc. Đang biên tập…" : "Đang trau chuốt câu chữ…");
+        message(s.quick ? "Đã lưu bản chép gốc. Đang trau chuốt nội dung…" : "Đang trau chuốt câu chữ…");
         s.polished = await request("polish", s.original, s.controller.signal);
         if (session !== s) return;
-        if (s.quick) await onQuickPolished(s.savedId, s.original, s.polished);
-        if (session !== s) return;
       }
+      if (s.quick && !s.polishStored) {
+        message("Đang lưu nội dung đã trau chuốt…");
+        await onQuickPolished(s.savedId, s.original, s.polished);
+        if (session !== s) return;
+        s.polishStored = true;
+      }
+      if (s.quick) {
+        // The original was already saved as a safety checkpoint. The polished
+        // version is now stored; return to the ideas inbox without another tap.
+        close();
+        return;
+      }
+      if (s.target.isConnected && s.target.value === s.before) {
+        // Contextual recording inserts the polished copy directly, preserving
+        // any existing text. The editor's input listener persists the change.
+        const result = insertVoiceText(s.target.value, s.polished, s.start);
+        s.target.value = result.value;
+        s.start = s.end = result.cursor;
+        s.target.dispatchEvent(new Event("input", { bubbles: true }));
+        try { onInserted({ target: s.target, value: result.value }); } catch {}
+        close();
+        return;
+      }
+      // Only show the recovery view when another edit or UI change prevents safe insertion.
       q("#voice-polished").value = s.polished;
       q("#voice-version option[value=polished]").disabled = false;
       q("#voice-version").value = "polished";
+      q(".voice-versions").hidden = false;
       setPhase("review");
-      message(s.quick ? "Đã lưu vào Kho ý tưởng. Có thể mở ý tưởng hoặc chuyển sang kịch bản." :
-        "Chọn bản chép để chèn vào nội dung.");
+      message("Nội dung đã thay đổi trong lúc ghi. Chọn bản chép để tránh ghi đè dữ liệu.");
     } catch (error) {
       if (session !== s) return;
+      setPhase("error");
       if (s.quick && s.savedId) {
-        setPhase("review");
-        q(".voice-quick-actions").hidden = false;
-        message("Bản chép gốc đã lưu vào Kho ý tưởng. Chưa hoàn tất biên tập: " + error.message);
+        // The draft survives polishing errors, and retry reuses its original transcript.
+        message("Bản chép gốc đã lưu an toàn. Chưa trau chuốt được: " + error.message + ". Bấm Thử lại.");
       } else {
-        setPhase("error");
         message(`${error.message}${s.original ? " Bản chép vẫn ở đây để thử lưu lại." :
           " Bản ghi âm chưa bị xóa. Hãy bấm Thử lại."}`);
       }

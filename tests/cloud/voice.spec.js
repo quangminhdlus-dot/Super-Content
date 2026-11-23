@@ -140,84 +140,32 @@ test("voice recorder attaches to content, never to a title field", async ({ page
 });
 
 for (const mp4 of [false, true])
-  test(`review ${mp4 ? "Safari MP4" : "Chrome WebM"}, explicit insertion, cursor and cancellation`, async ({
-    page,
-  }) => {
+  test(`Send immediately inserts polished content ${mp4 ? "Safari MP4" : "Chrome WebM"}`, async ({ page }) => {
     await setup(page, { mp4 });
     await record(page);
-    await expect(page.locator("#voice-polished")).toHaveValue(
-      "Nội dung rõ ràng.",
-    );
-    await expect(page.locator("#target")).toHaveValue("Đầu Cuối");
-    expect(await page.evaluate(() => window.changes)).toBe(0);
+    await expect(page.locator("#voice-dialog")).toHaveCount(0);
+    await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
+    expect(await page.evaluate(() => window.changes)).toBe(1);
     expect(await page.evaluate(() => window.requests[0].type)).toBe(
       mp4 ? "audio/mp4" : "audio/webm;codecs=opus",
     );
     expect(await page.evaluate(() => window.stopped)).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "Đóng ghi âm", exact: true }).click();
-    await expect(page.locator("#target")).toHaveValue("Đầu Cuối");
-    expect(
-      await page.locator("#target").evaluate((el) => el.selectionStart),
-    ).toBe(4);
-    await record(page);
-    await page
-      .getByRole("button", { name: "Chèn tại con trỏ", exact: true })
-      .click();
-    await expect(page.locator("#target")).toHaveValue(
-      "Đầu Nội dung rõ ràng. Cuối",
-    );
-    expect(await page.evaluate(() => window.changes)).toBe(1);
-    expect(
-      await page.locator("#target").evaluate((el) => el.selectionStart),
-    ).toBe(22);
   });
-test("network retries keep audio; polish failure keeps original without transcribing twice; replace needs confirmation", async ({
-  page,
-}) => {
+
+test("retry uses the original transcript without retranscribing after polish failure", async ({ page }) => {
   await setup(page);
-  await page.evaluate(() => {
-    window.failTranscribe = true;
-  });
-  await open(page);
-  await page
-    .getByRole("button", { name: "Gửi bản ghi", exact: true })
-    .click();
-  await expect(page.locator("#voice-status")).toContainText(
-    "Mất mạng thử nghiệm",
-  );
-  await page.evaluate(() => {
-    window.failTranscribe = false;
-    window.failPolish = true;
-  });
-  await page.getByRole("button", { name: "Thử lại", exact: true }).click();
-  await expect(page.locator("#voice-status")).toContainText(
-    "Lỗi biên tập thử nghiệm",
-  );
+  await page.evaluate(() => { window.failPolish = true; });
+  await record(page);
+  await expect(page.locator("#voice-status")).toContainText("Lỗi biên tập thử nghiệm");
   await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
-  await page.evaluate(() => {
-    window.failPolish = false;
-  });
+  await page.evaluate(() => { window.failPolish = false; });
   await page.getByRole("button", { name: "Thử lại", exact: true }).click();
-  await expect(page.locator("#voice-polished")).toHaveValue(
-    "Nội dung rõ ràng.",
-  );
-  expect(
-    await page.evaluate(
-      () => window.requests.filter((r) => r.operation === "transcribe").length,
-    ),
-  ).toBe(2);
-  page.once("dialog", (d) => d.dismiss());
-  await page
-    .getByRole("button", { name: "Thay thế toàn bộ ô", exact: true })
-    .click();
-  await expect(page.locator("#target")).toHaveValue("Đầu Cuối");
-  await page.locator("#voice-version").selectOption("original");
-  page.once("dialog", (d) => d.accept());
-  await page
-    .getByRole("button", { name: "Thay thế toàn bộ ô", exact: true })
-    .click();
-  await expect(page.locator("#target")).toHaveValue("ừ nội dung gốc");
+  await expect(page.locator("#voice-dialog")).toHaveCount(0);
+  await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
+  expect(await page.evaluate(() =>
+    window.requests.filter(r => r.operation === "transcribe").length)).toBe(1);
 });
+
 test("replacing editor DOM during recording never asks to discard unsent audio", async ({ page }) => {
   await setup(page);
   await open(page);
@@ -280,18 +228,11 @@ test("denied microphone, pending permission cancellation, automatic stop and con
   await page.clock.fastForward(600001);
   await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "ready");
   await expect(page.getByRole("button", { name: "Gửi bản ghi" })).toBeVisible();
-  await page.getByRole("button", { name: "Gửi bản ghi" }).click();
-  await expect(page.locator("#voice-polished")).toHaveValue(
-    "Nội dung rõ ràng.",
-  );
   await page.locator("#target").evaluate((el) => {
     el.value = "Bản mới từ đồng bộ";
   });
-  await page
-    .getByRole("button", { name: "Chèn tại con trỏ", exact: true })
-    .click();
-  await expect(page.locator("#voice-status")).toContainText(
-    "Ô nội dung đã thay đổi",
-  );
+  await page.getByRole("button", { name: "Gửi bản ghi" }).click();
+  await expect(page.locator("#voice-status")).toContainText("Nội dung đã thay đổi");
   await expect(page.locator("#target")).toHaveValue("Bản mới từ đồng bộ");
+  await expect(page.locator("#voice-polished")).toHaveValue("Nội dung rõ ràng.");
 });

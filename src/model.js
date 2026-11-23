@@ -51,7 +51,7 @@ export function transition(video, stage) {
     stage,
     published_at:
       stage === "published"
-        ? video.published_at || new Date().toISOString()
+        ? video.stage === "published" ? video.published_at || new Date().toISOString() : new Date().toISOString()
         : video.published_at,
   };
 }

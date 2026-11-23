@@ -55,3 +55,15 @@ test("archive, trash, restore, purge preserve stage and filter independently", (
   assert.ok(!visible(v, "ideas"));
   assert.ok(!visible(v, "trash"));
 });
+
+test("publication date is set on publish, never on idea recording, and refreshed when republished", () => {
+  const video = createVideo("Tư tưởng", null);
+  assert.equal(video.published_at, null);
+  const first = transition(video, "published");
+  assert.ok(first.published_at);
+  const stayPublished = transition(first, "published");
+  assert.equal(stayPublished.published_at, first.published_at);
+  const back = transition(first, "editing");
+  const republished = transition({ ...back, published_at: "2020-01-01T00:00:00.000Z" }, "published");
+  assert.notEqual(republished.published_at, "2020-01-01T00:00:00.000Z");
+});

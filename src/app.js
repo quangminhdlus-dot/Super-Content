@@ -59,12 +59,19 @@ document.body.append(quickIdeaBuffer);
 const voice = initVoice({
   onInserted: ({ target }) => {
     if (target.id === "idea-content") void suggestTitleForIdea();
+    if (target.id === "new-idea-content") {
+      // A new idea recorded from the add form is also saved with one Send tap.
+      document.querySelector("#add-form")?.requestSubmit();
+    }
   },
   onQuickTranscript: async (text) => saveQuickRecordedIdea(text),
   onQuickPolished: async (id, original, polished) => {
-    if (original === polished) return;
-    await enqueue(id, (v) => v.notes === original ? { ...v, notes: polished } : v);
-    scheduleSync();
+    if (original !== polished) {
+      await enqueue(id, (v) => v.notes === original ? { ...v, notes: polished } : v);
+      scheduleSync();
+    }
+    // Use the FINAL saved content for title generation; no manual selection.
+    void suggestNewIdeaTitle(id, polished);
   },
   onQuickClosed: (id) => {
     if (!id) return;
@@ -74,7 +81,7 @@ const voice = initVoice({
     view = "ideas";
     render();
     const saved = videos().find((v) => v.id === id);
-    if (saved && !saved.title) void suggestNewIdeaTitle(id, saved.notes);
+    if (saved && !saved.title && saved.notes.trim()) void suggestNewIdeaTitle(id, saved.notes);
   },
   onQuickOpen: async (id, stage) => {
     if (stage === "script") {
@@ -433,21 +440,30 @@ async function saveQuickRecordedIdea(value) {
 }
 
 // Suggest a title after saving the content; do not block the creation flow.
+function fallbackIdeaTitle(content) {
+  // A deterministic fallback keeps the idea navigable when the title service is unavailable.
+  const sentence = content.trim().replace(/\s+/g, " ").split(/[.!?](?:\s|$)/)[0]?.trim();
+  return (Array.from(sentence || content.trim()).slice(0, 80).join("").trim() || "Ý tưởng từ ghi âm")
+    .replace(/[,;:\s]+$/, "");
+}
 async function suggestNewIdeaTitle(id, content) {
+  let title;
   try {
-    const suggestion = (await voiceRequest("title", content, new AbortController().signal)).trim();
-    if (!suggestion) return;
-    const current = videos().find((v) => v.id === id);
-    if (!current || current.title.trim() || current.notes.trim() !== content || current.deleted_at) return;
+    title = (await voiceRequest("title", content, new AbortController().signal)).trim();
+  } catch {
+    title = fallbackIdeaTitle(content);
+  }
+  if (!title) title = fallbackIdeaTitle(content);
+  const current = videos().find((v) => v.id === id);
+  if (!current || current.title.trim() || current.notes.trim() !== content || current.deleted_at) return;
+  try {
     await enqueue(id, (v) =>
-      v.title.trim() || v.notes.trim() !== content
-        ? v
-        : { ...v, title: suggestion },
+      v.title.trim() || v.notes.trim() !== content ? v : { ...v, title },
     );
     scheduleSync();
-    if (!editing && !dialog.open && view === "ideas") render();
+    if (!editing && !dialog.open && view === "ideas" && !voice.isActive()) render();
   } catch {
-    // Keep saved content intact when AI title generation is unavailable.
+    // Content has already been saved; leave it intact if this optional update fails.
   }
 }
 

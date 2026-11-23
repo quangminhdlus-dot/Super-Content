@@ -181,14 +181,12 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   await a
     .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
-  await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
-  await expect(a.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "review");
-  await expect(a.locator("#voice-clock")).toBeHidden();
+  await expect(a.locator("#voice-dialog")).toHaveCount(0);
+  await expect(a.locator("#idea-content")).toHaveValue("Thêm ý này. Giữ bản gốc");
   expect(
     await a.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBe(true);
   await a.screenshot({ path: "test-results/voice-review.png", fullPage: true });
-  await expect(a.locator("#idea-content")).toHaveValue("Giữ bản gốc");
   expect(recordedType).toMatch(/^audio\/webm/);
   expect(recordedBytes.subarray(0, 4)).toEqual(Buffer.from([26, 69, 223, 163]));
   expect(
@@ -198,9 +196,6 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
         .every((track) => track.readyState === "ended"),
     ),
   ).toBe(true);
-  await a
-    .getByRole("button", { name: "Chèn tại con trỏ", exact: true })
-    .click();
   await expect
     .poll(() => [...server.values()][0].notes)
     .toBe("Thêm ý này. Giữ bản gốc");
@@ -239,16 +234,16 @@ test("two browser sessions: sync, durable failed writes, conflict resolution, ac
   expect(await a.evaluate(() => window.unexpectedVoiceDiscardPrompts)).toBe(0);
   await expect.poll(() => a.evaluate(() => window.voiceTestBytes)).toBeGreaterThan(beforeQuick);
   await a.getByRole("button", { name: "Gửi bản ghi" }).click();
-  await expect(a.locator("#voice-polished")).toHaveValue("Thêm ý này.");
-  await expect(a.locator("#voice-dialog .voice-versions [data-voice=replace]")).toBeHidden();
+  // Single tap finishes capture, saves polished text, and returns to the ideas inbox.
+  await expect(a.locator("#voice-dialog")).toHaveCount(0);
   await expect.poll(() => server.size).toBe(2);
-  await expect(a.locator("#voice-status")).toContainText("Đã lưu vào Kho ý tưởng");
-  await expect(a.getByRole("button", { name: "Mở trong Kho ý tưởng" })).toBeVisible();
-  await expect(a.getByRole("button", { name: "Lưu vào kịch bản" })).toBeVisible();
-  await a.getByRole("button", { name: "Đóng ghi âm" }).click();
   await expect(a.locator(".page-heading h1")).toContainText("Kho ý tưởng");
   await expect(a.locator(".video-row")).toHaveCount(2);
   await expect(a.locator(".video-row").first()).toContainText("Thêm ý này.");
+  await expect.poll(() => [...server.values()].find(v => v.title !== "Video chung")?.title?.length || 0).toBeGreaterThan(0);
+  const quickSaved = [...server.values()].find(v => v.title !== "Video chung");
+  expect(quickSaved.notes).toBe("Thêm ý này.");
+  expect(quickSaved.published_at).toBeNull();
   await a.evaluate(() => window.voiceTestAudio.close());
   await a.reload();
   await a.locator(".video-main").filter({ hasText: "Video chung" }).click();

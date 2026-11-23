@@ -62,3 +62,11 @@ Theo bảng giá OpenAI kiểm tra ngày 23/11/2026: [gpt-transcribe](https://de
 - Sau gửi hiện lựa chọn **Mở trong Kho ý tưởng** hoặc **Lưu vào kịch bản** (chuyển mục đã lưu sang công đoạn Lên kịch bản). Đóng cửa sổ sau khi đã lưu vẫn giữ nguyên ý tưởng.
 - Nếu tải lên/nhận dạng lỗi trước khi có bản chép, âm thanh vẫn được giữ **trong cửa sổ ghi hiện tại** để Thử lại. Đóng khi chưa gửi/chưa lưu có xác nhận xóa; Xóa chủ động sẽ hủy bản ghi. Không hứa khôi phục âm thanh nếu trình duyệt bị hệ điều hành đóng hoặc tải lại trước khi nhận dạng.
 - Chuyển ứng dụng sang nền khi đang ghi sẽ cố tạm dừng, không tự động gửi. Giới hạn 10 phút là **thời gian ghi thực tế**, không cộng thời gian tạm dừng. Khi hết thời lượng, cần chạm Gửi để hoàn tất.
+
+## Lưu một chạm sau ghi âm (cập nhật)
+
+- Ghi âm nhanh: **Gửi → nhận dạng → lưu bản gốc an toàn → AI trau chuốt → cập nhật nội dung → tự đóng và trở về Kho ý tưởng**. Không có bước chọn bản gốc/bản trau chuốt hoặc bấm Lưu thêm.
+- Tiêu đề tự động dùng nội dung cuối cùng đã trau chuốt; nếu dịch vụ gợi ý tên không khả dụng, hệ thống tạo một tiêu đề ngắn từ đầu nội dung để tránh ý tưởng không có tên.
+- Khi chạm micro trong ô **Nội dung ý tưởng/kịch bản**, bản đã trau chuốt được tự chèn ở vị trí con trỏ và kích hoạt lưu như khi nhập chữ. Khi ghi từ biểu mẫu Thêm ý tưởng, nội dung được tự lưu thành ý tưởng mới.
+- Nếu biên tập AI thất bại, bản gốc đã lưu vẫn an toàn và cửa sổ giữ nút **Thử lại**; nếu ô nội dung bị chỉnh đồng thời, không ghi đè và mở bản chép để phục hồi.
+- **Ngày tạo** được gán khi lưu ý tưởng; **Ngày xuất bản** chỉ tự gán khi chuyển sang mục **Đã xuất bản**, không phải ngày ghi âm.
