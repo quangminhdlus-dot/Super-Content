@@ -125,12 +125,14 @@ async function open(page) {
   await page.getByRole("button", { name: "Tiếp tục" }).click();
   await expect(page.locator("#voice-dialog")).toHaveAttribute("data-voice-phase", "recording");
 }
-async function record(page) {
+async function record(page, { expectSuccess = true } = {}) {
   await open(page);
   await page
     .getByRole("button", { name: "Gửi bản ghi", exact: true })
     .click();
-  await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
+  if (expectSuccess) {
+    await expect(page.locator("#target")).toHaveValue("Đầu Nội dung rõ ràng. Cuối");
+  }
 }
 test("voice recorder attaches to content, never to a title field", async ({ page }) => {
   await setup(page);
@@ -155,7 +157,7 @@ for (const mp4 of [false, true])
 test("retry uses the original transcript without retranscribing after polish failure", async ({ page }) => {
   await setup(page);
   await page.evaluate(() => { window.failPolish = true; });
-  await record(page);
+  await record(page, { expectSuccess: false });
   await expect(page.locator("#voice-status")).toContainText("Lỗi biên tập thử nghiệm");
   await expect(page.locator("#voice-original")).toHaveValue("ừ nội dung gốc");
   await page.evaluate(() => { window.failPolish = false; });
