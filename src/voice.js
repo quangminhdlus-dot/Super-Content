@@ -20,7 +20,7 @@ export function initVoice({
   modal.innerHTML = `<div class="dialog-heading"><h2 id="voice-title">Ghi âm & biên tập AI</h2><button type="button" data-voice="cancel" aria-label="Đóng ghi âm">×</button></div>
     <p class="muted">Mỗi đoạn tối đa 2 phút / 8 MB. Âm thanh và bản chép được gửi đến OpenAI để xử lý. Ứng dụng không lưu âm thanh trên máy chủ.</p>
     <p role="status" id="voice-status" aria-live="polite"></p>
-    <div class="voice-controls"><button type="button" class="primary" data-voice="start">Bắt đầu ghi</button><button type="button" data-voice="stop" hidden>Dừng & nhận dạng</button><button type="button" data-voice="retry" hidden>Thử lại</button></div>
+    <div class="voice-controls"><button type="button" class="primary" data-voice="start" hidden>Thử ghi lại</button><button type="button" data-voice="stop" hidden>Dừng & nhận dạng</button><button type="button" data-voice="retry" hidden>Thử lại</button></div>
     <div class="voice-versions" hidden><label class="field">Bản chép gốc<textarea id="voice-original" rows="6" readonly></textarea></label><label class="field">Bản đã trau chuốt<textarea id="voice-polished" rows="6" readonly></textarea></label>
       <label class="field">Chọn bản để dùng<select id="voice-version"><option value="original">Bản chép gốc</option><option value="polished" disabled>Bản đã trau chuốt</option></select></label>
       <p class="muted">Đọc lại tên riêng, số liệu và trích dẫn trước khi dùng. Chèn giữ nguyên nội dung hiện có; thay thế cần xác nhận.</p>
@@ -85,24 +85,52 @@ export function initVoice({
     q("#voice-version").value = "original";
     q("#voice-version option[value=polished]").disabled = true;
     ["start", "stop", "retry"].forEach((name) => show(name, false));
-    message("Đang kiểm tra phiên đăng nhập…");
+    message("Đang mở micro…");
     root.append(modal);
     modal.showModal();
+
+    if (
+      !isSecureContext ||
+      !navigator.mediaDevices?.getUserMedia ||
+      !window.MediaRecorder
+    ) {
+      message("Trình duyệt chưa hỗ trợ ghi âm. Hãy mở bằng HTTPS trên Chrome hoặc Safari mới.");
+      return;
+    }
+    if (!navigator.onLine) {
+      message("Cần có mạng trước khi bắt đầu ghi âm AI.");
+      return;
+    }
+
+    // Request microphone in the original click gesture (important for Safari/iPhone).
+    // Recording itself begins only after the signed-in session is authorized.
+    let streamPromise;
+    try {
+      streamPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (error) {
+      message(error.message || "Không mở được micro. Vui lòng thử lại.");
+      show("start", true);
+      return;
+    }
+    // Revoke a late permission grant if the dialog is closed or authorization fails.
+    streamPromise.then(
+      (stream) => {
+        if (session !== s || s.authorizationFailed || s.controller.signal.aborted)
+          stream.getTracks().forEach((track) => track.stop());
+      },
+      () => {},
+    );
     try {
       await authorize();
       if (session !== s) return;
-      if (
-        !isSecureContext ||
-        !navigator.mediaDevices?.getUserMedia ||
-        !window.MediaRecorder
-      )
-        throw new Error(
-          "Trình duyệt chưa hỗ trợ ghi âm. Hãy mở bằng HTTPS trên Chrome hoặc Safari mới.",
-        );
-      message("Sẵn sàng. Bấm Bắt đầu ghi để cấp quyền micro.");
-      show("start", true);
+      await start(s, streamPromise);
     } catch (error) {
-      if (session === s) message(error.message);
+      s.authorizationFailed = true;
+      streamPromise.then(
+        (stream) => stream.getTracks().forEach((track) => track.stop()),
+        () => {},
+      );
+      if (session === s) message(error.message || "Chưa xác thực được tài khoản.");
     }
   }
   async function process(s) {
@@ -144,14 +172,14 @@ export function initVoice({
     show("stop", false);
     message("Đang hoàn tất đoạn ghi…");
   }
-  async function start(s) {
+  async function start(s, streamPromise = null) {
     show("start", false);
     show("retry", false);
     message("Đang chờ quyền truy cập micro…");
     try {
       if (!navigator.onLine)
         throw new Error("Cần có mạng trước khi bắt đầu ghi âm AI.");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await (streamPromise || navigator.mediaDevices.getUserMedia({ audio: true }));
       if (session !== s) {
         stream.getTracks().forEach((t) => t.stop());
         return;
