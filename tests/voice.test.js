@@ -81,6 +81,30 @@ test("suggests one concise Vietnamese title from a spoken idea without adding cl
   assert.match(input.instructions, /Cấm bịa/);
 });
 
+test("creates three distinct curiosity titles with formula and no invented YouTube evidence", async () => {
+  const service = createVoiceService({
+    key: "test-only",
+    fetcher: async () => Response.json({
+      status: "completed",
+      output: [{ content: [{ type: "output_text", text: JSON.stringify({
+        title: "Vì sao càng bận rộn, bạn càng dễ đánh mất mục tiêu?",
+        alternatives: [
+          "Cái giá thầm lặng của việc sống không có định hướng",
+          "Bạn có đang nhầm bận rộn với tiến bộ?",
+        ],
+        framework: "Câu hỏi trái kỳ vọng",
+        explanation: "Đặt hai điều tưởng đi cùng nhau vào thế đối lập.",
+      }) }] }],
+    }),
+  });
+  const result = await service.suggestTitle("Tôi muốn nói về chuyện nhiều người bận rộn mà vẫn không có mục tiêu rõ ràng.");
+  assert.equal(result.alternatives.length, 2);
+  assert.match(result.title, /^Vì sao/);
+  assert.equal(result.framework, "Câu hỏi trái kỳ vọng");
+  assert.equal(result.research.status, "unavailable");
+  assert.deepEqual(result.research.examples, []);
+});
+
 test("rejects mislabeled, empty and oversized audio; exposes no provider diagnostics", async () => {
   for (const [bytes, type] of [
     [webm, "audio/mp4"],
