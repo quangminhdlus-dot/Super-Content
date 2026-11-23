@@ -36,6 +36,8 @@ test("dark panels have no bright borders, empty-stage icons are blue, and checkb
   await expect(emptyIcon).toHaveCSS("color", "rgb(47, 130, 255)");
   await expect(emptyIcon).toHaveCSS("border-top-width", "0px");
   await expect(page.locator(".panel").first()).toHaveCSS("border-top-width", "0px");
+  await stage(page, "Hoàn thiện").click();
+  await expect(page.locator(".empty-icon")).toHaveCSS("color", "rgb(47, 130, 255)");
 
   await stage(page, "Ý tưởng").click();
   await add(page, "Ý tưởng về sức mạnh của hành động");
