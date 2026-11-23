@@ -108,10 +108,6 @@ test("request start watchdog, transcript timeout and missing onstop never trap b
   await page.locator("#other").click();
   await expect(page.locator("#touches")).toHaveText("1");
 
-  await page.evaluate(() => window.testMode = "no-response");
-  await page.evaluate(() => window.allowPermission(window.mockStream));
-  await page.evaluate(() => { window.controller.abort(); });
-  // The first controller was already released; create a new test controller.
 });
 
 test("a missing recorder onstop is recovered without waiting for Safari events", async ({ page }) => {
