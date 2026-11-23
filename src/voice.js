@@ -157,7 +157,7 @@ export function initVoice({
   }
 
   async function open(target, { quick = false } = {}) {
-    if (session) close();
+    if (session && !close()) return;
     const s = {
       target,
       before: target.value,
@@ -290,7 +290,7 @@ export function initVoice({
       return;
     }
     s.elapsedMs = elapsedMs(s);
-    updateClock(s);
+    q("#voice-elapsed").textContent = formatTime(Math.floor(s.elapsedMs / 1000));
     clearTimers(s);
     stopMeter(s);
     s.sendRequested = send;
@@ -311,12 +311,13 @@ export function initVoice({
         message("Thiết bị chưa hỗ trợ tạm dừng. Anh có thể bấm Gửi để lưu.");
         return;
       }
-      s.elapsedMs = elapsedMs(s);
-      clearTimers(s);
+      const stoppedAt = elapsedMs(s);
       try { s.recorder.pause(); } catch (e) {
         message("Không tạm dừng được: " + e.message);
         return;
       }
+      s.elapsedMs = stoppedAt;
+      clearTimers(s);
       stopMeter(s);
       updateClock(s);
       setPhase("paused");

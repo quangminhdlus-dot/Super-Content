@@ -69,7 +69,7 @@ const voice = initVoice({
   },
   onQuickOpen: async (id, stage) => {
     if (stage === "script") {
-      await enqueue(id, (v) => transition(v, "script"));
+      await enqueue(id, (v) => ({ ...transition(v, "script"), script: v.script.trim() ? v.script : v.notes }));
       scheduleSync();
     }
     editing = id;
