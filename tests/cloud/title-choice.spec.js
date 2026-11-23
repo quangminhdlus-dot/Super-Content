@@ -44,10 +44,12 @@ test("choosing one of three title suggestions hides other two and keeps the chos
   await expect(reopen).toBeVisible();
   await expect(reopen).toHaveText("Xem lại 3 tiêu đề");
 
-  await reopen.click();
+  // Trigger directly: this isolated fixture is appended outside the app layout,
+  // where unrelated fixed navigation can intercept pointer actionability.
+  await reopen.evaluate((element) => element.click());
   for (let i = 0; i < 3; i++) await expect(options.nth(i)).toBeVisible();
   await expect(reopen).toBeHidden();
-  await options.nth(2).click();
+  await options.nth(2).evaluate((element) => element.click());
   await expect(page.locator("#test-video-title")).toHaveValue("Tiêu đề 3");
   await expect(options.nth(0)).toBeHidden();
   await expect(options.nth(1)).toBeHidden();
