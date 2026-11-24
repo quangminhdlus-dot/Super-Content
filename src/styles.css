@@ -2363,3 +2363,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 @media (prefers-reduced-motion: reduce) {
   #voice-dialog .voice-saving-spinner { animation-duration: 2.5s; }
 }
+
+.prompter-send { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: .6rem 0; }
+.prompter-send a { text-decoration: underline; }
