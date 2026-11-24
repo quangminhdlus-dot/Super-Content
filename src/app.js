@@ -13,6 +13,7 @@ import {
 } from "./model.js";
 import * as db from "./storage.js";
 import { cloud, fetchVideos, saveVideo } from "./cloud.js";
+import { prompterUrl, scriptLink, sendToPrompter } from "./prompter.js";
 import { initResearch, showResearch, resetResearch } from "./research/ui.js";
 import { provenance } from "./research/client.js";
 import { initVoice } from "./voice.js";
@@ -578,6 +579,94 @@ async function deleteReference(index) {
   await updateReferences(removeReferenceLink(current.source_url, index));
 }
 
+function prompterQueueKey(owner) {
+  return "super-content:prompter:" + owner;
+}
+function readPrompterQueue(owner) {
+  return JSON.parse(localStorage.getItem(prompterQueueKey(owner)) || "{}");
+}
+function writePrompterJob(owner, id, job) {
+  const jobs = readPrompterQueue(owner);
+  localStorage.setItem(prompterQueueKey(owner), JSON.stringify({ ...jobs, [id]: job }));
+}
+function showPrompterStatus(owner, id, savedJobs) {
+  if (scope !== owner || editing !== id) return;
+  const box = document.querySelector("[data-prompter-status]");
+  if (!box) return;
+  const job = (savedJobs || readPrompterQueue(owner))[id];
+  box.replaceChildren();
+  if (!job) return;
+  if (job.state !== "sent") {
+    box.textContent = job.message || "Chờ đồng bộ";
+    return;
+  }
+  box.append(job.pending ? "Đã gửi bản mới. " : "Đã gửi thành công. ");
+  const link = document.createElement("a");
+  link.href = scriptLink(job.scriptId);
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "Mở trong Super Prompter";
+  box.append(link);
+}
+async function queuePrompterSend() {
+  const id = editing, owner = scope;
+  if (!user || !cloud) {
+    toast("Đăng nhập Super Content để gửi kịch bản.");
+    return;
+  }
+  if (!prompterUrl) return;
+  await voice.stopInline();
+  await writeChain;
+  if (owner !== scope || id !== editing) return;
+  const video = records.find(record => record.video.id === id)?.video;
+  const input = document.querySelector("#script");
+  const title = document.querySelector("#video-title");
+  if (!video || input?.value !== video.script || title?.value !== video.title) {
+    toast("Chưa xác nhận được bản lưu mới nhất. Kiểm tra nội dung rồi gửi lại.");
+    return;
+  }
+  if (!video.script.trim()) {
+    toast("Hãy viết kịch bản trước khi gửi.");
+    return;
+  }
+  writePrompterJob(owner, id, { state: "queued", token: crypto.randomUUID() });
+  showPrompterStatus(owner, id);
+  if (navigator.onLine) await sync();
+}
+let drainingPrompter = false;
+async function drainPrompterQueue(owner) {
+  if (!prompterUrl || !cloud || !user || scope !== owner || !navigator.onLine || drainingPrompter) return;
+  drainingPrompter = true;
+  try {
+    for (const [id, job] of Object.entries(readPrompterQueue(owner))) {
+      if (scope !== owner) return;
+      if (job.state !== "queued") continue;
+      const record = records.find(item => item.video.id === id);
+      if (!record || record.video.deleted_at || record.video.purged_at) continue;
+      if (record.conflict) {
+        showPrompterStatus(owner, id, { [id]: { message: "Chờ đồng bộ · hãy xử lý xung đột kịch bản." } });
+        continue;
+      }
+      if (record.dirty || !record.base || !sameVideoContent(record.video, record.base)) continue;
+      try {
+        const sent = await sendToPrompter(record.video);
+        if (!sent?.id) throw new Error("Missing send receipt");
+        if (readPrompterQueue(owner)[id]?.token !== job.token) continue;
+        writePrompterJob(owner, id, { state: "sent", scriptId: sent.id, pending: sent.pending });
+      } catch (error) {
+        if (readPrompterQueue(owner)[id]?.token !== job.token) continue;
+        if (["PGRST202", "42501", "P0001"].includes(error.code)) {
+          writePrompterJob(owner, id, { ...job, state: "error", message:
+            error.code === "P0001" ? "Kịch bản trên máy chủ đã đổi. Đồng bộ và gửi lại."
+              : "Chưa gửi được. Kiểm tra tài khoản và cấu hình Super Prompter." });
+        }
+      }
+      showPrompterStatus(owner, id);
+    }
+  } finally {
+    drainingPrompter = false;
+  }
+}
 function editorHTML() {
   const v = videos().find((x) => x.id === editing);
   if (!v) {
@@ -588,7 +677,7 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><div class="${isIdea ? "idea-writing-area" : "script-writing-area"}"><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Chạm micro góc dưới để đọc thành chữ…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea>${isIdea ? `<div class="idea-next-row"><button class="primary idea-next-stage" type="button" data-action="idea-to-script">Chuyển sang Kịch bản ${icon("arrow")}</button></div>` : ""}</div></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div>${!isIdea && prompterUrl ? '<div class="prompter-send"><button class="primary" type="button" data-action="send-prompter">Gửi sang máy nhắc chữ</button><small data-prompter-status role="status"></small></div>' : ""}<div class="${isIdea ? "idea-writing-area" : "script-writing-area"}"><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Chạm micro góc dưới để đọc thành chữ…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">\n${e(primaryText)}</textarea>${isIdea ? `<div class="idea-next-row"><button class="primary idea-next-stage" type="button" data-action="idea-to-script">Chuyển sang Kịch bản ${icon("arrow")}</button></div>` : ""}</div></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -601,6 +690,7 @@ function bindEditor() {
       document.querySelector('[data-action="reference-add"]')?.click();
     }
   });
+  if (prompterUrl && user) showPrompterStatus(scope, editing);
   app.querySelectorAll("[data-field]").forEach((input) =>
     input.addEventListener("input", () => {
       const id = editing,
@@ -929,6 +1019,7 @@ async function sync() {
   } finally {
     working = false;
   }
+  await drainPrompterQueue(myScope);
 }
 async function changeSession(session) {
   await writeChain.catch(() => {});
@@ -1090,6 +1181,9 @@ document.addEventListener("click", async (ev) => {
         case "restore":
         case "purge":
           await batch(b.dataset.action);
+          break;
+        case "send-prompter":
+          await queuePrompterSend();
           break;
         case "sync":
           await sync();
