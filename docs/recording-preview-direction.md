@@ -48,7 +48,7 @@ Số đo tại máy kiểm thử, 16 tệp MP4 (8 tổ hợp camera/độ phân 
 | Sai lệch chớp sáng–âm thanh lớn nhất | 66,7 ms (độ phân giải phép đo hình 33,3 ms) |
 | Tệp tải xuống so với Kho Video | Cùng kích thước và SHA-256 |
 
-Kiểm thử nghiệp vụ: 63/63 đạt. Hồi quy trình duyệt: 95 đạt, 13 bỏ qua theo cấu hình có sẵn. Sau khi thêm kiểm tra thông lượng thực và chuẩn bị khung hình: chạy lại toàn bộ 24/24 trường hợp camera/studio, tất cả đạt; cả 16 tệp thử trên Windows hoàn tất ở chất lượng gốc. Đồng bộ và các dịch vụ giả lập: 21/21 đạt.
+Kiểm thử nghiệp vụ: 63/63 đạt. Hồi quy trình duyệt cục bộ: 95 đạt, 13 bỏ qua theo cấu hình có sẵn. Kiểm thử camera/studio cục bộ: 24/24 đạt; cả 16 tệp thử trên Windows hoàn tất ở chất lượng gốc. Đồng bộ và các dịch vụ giả lập: 21/21 đạt. Theo phạm vi đã chốt, CI Linux chỉ ghi các ca thiết yếu 1080p; không tiếp tục thử hiệu suất mã hóa 4K trên runner không có GPU. Kiểm tra khả năng giữ kích thước 4K vẫn thực hiện mà không chạy benchmark mã hóa.
 
 ## Giới hạn Safari/iPhone
 
@@ -56,7 +56,13 @@ Chưa xác minh iPhone 16 Pro Max vật lý, Photos/Files trên iPhone hoặc Ca
 
 Đường lật hình cần Canvas capture, requestVideoFrameCallback và requestFrame; kiểm tra kích thước/FPS track xuất trước khi mở encoder. Nếu trình duyệt không cung cấp/giữ được thông số yêu cầu, ứng dụng báo lỗi, không tự hạ xuống 1080p, giảm bitrate hoặc ghi camera trước sai chiều. Khả năng API và FPS khai báo không bảo đảm thông lượng mã hóa thực trên mọi thiết bị; cần đo lại tệp Safari trên thiết bị thật để xác nhận toàn bộ điều kiện chất lượng.
 
-Kiểm thử CI Linux không GPU đã phát hiện đường Canvas 4K có thể chỉ xử lý 10–12 FPS dù track khai báo 30 FPS. Vì vậy bản sửa còn đo số khung thực sự vẽ được theo cửa sổ 1,5 giây: nếu thấp hơn 90% tốc độ camera, hoặc thao tác vẽ lỗi/khung đổi kích thước, bộ ghi dừng qua cơ chế gián đoạn hiện hành, hiện thông báo chất lượng và giữ tệp ở trạng thái chưa hoàn tất. Không tự hạ cấu hình và không báo đó là một lượt quay hoàn chỉnh. Các bài kiểm thử cũng xác nhận trường hợp này. CI chạy kiểm thử video tuần tự để tránh việc nhiều bản ghi 4K cùng tranh tài nguyên runner; ngưỡng kiểm tra đồng bộ hình/tiếng không được nới.
+Không thêm cơ chế tự dừng theo benchmark FPS hoặc thay đổi kiến trúc encoder. Các thử nghiệm hiệu suất 4K trên runner Linux không GPU đã dừng vì không đại diện thiết bị sử dụng. Cấu hình chất lượng gốc được giữ nguyên; hiệu năng Safari thực tế sẽ được xác nhận bằng bản quay trên iPhone của người dùng.
+
+Bản phát hành sau khi thu hẹp phạm vi: 7/7 kiểm tra thiết yếu cục bộ đạt, gồm tệp camera trước/sau ở hai hướng, hình/tiếng, kích thước và cấu hình chất lượng, studio, gián đoạn và giải phóng tài nguyên. Không chạy thêm vòng benchmark 4K.
+
+## Khôi phục
+
+Phiên bản website trước thay đổi: `7515dac03b8c2b11725925b4f877e1296f0b693f`. Giữ nhánh `codex/rollback-camera-preview-20261126` tại commit này. Có thể khôi phục mã nguồn phiên bản đó và phát hành lại bằng workflow Pages hiện hành; không chuyển đổi hoặc xóa video đã có trên thiết bị.
 
 Tài liệu nền tảng: [WebKit MediaRecorder](https://webkit.org/blog/11353/), [Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream), [requestFrame](https://developer.mozilla.org/en-US/docs/Web/API/CanvasCaptureMediaStreamTrack/requestFrame), [requestVideoFrameCallback](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback).
 

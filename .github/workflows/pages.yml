@@ -30,7 +30,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_RESEARCH_API_URL: ${{ vars.VITE_RESEARCH_API_URL }}
       - run: npx playwright install --with-deps chromium
-      # Real-time 4K recording checks need exclusive runner resources.
+      # Record real media sequentially; 4K performance is excluded on Linux CI.
       - run: npm run test:e2e -- --workers=1
       - run: npm run test:sync
       - uses: actions/upload-artifact@v4

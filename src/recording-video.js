@@ -1,7 +1,7 @@
 // CSS transforms affect the preview only. Mirror decoded camera pixels before
 // the existing encoder, without changing its audio graph or encoding options.
 export function recordingVideo(preview, stream, mirrored) {
-  if (!mirrored) return {stream, async ready() {}, monitor() {}, close() {}};
+  if (!mirrored) return {stream, async ready() {}, close() {}};
   const camera = stream.getVideoTracks()[0];
   const {width, height, frameRate} = camera.getSettings();
   const canvas = document.createElement("canvas");
@@ -32,20 +32,12 @@ export function recordingVideo(preview, stream, mirrored) {
     output.getTracks().forEach(item => item.stop());
     throw Error("Trình duyệt không giữ được độ phân giải/FPS của camera khi ghi cùng chiều. Không hạ chất lượng video.");
   }
-  let closed = false, callback, qualityTimer, frames = 0, fail;
-  const qualityError = "Thiết bị không xử lý kịp video cùng chiều camera trước ở độ phân giải/FPS hiện tại. Đã dừng quay; không hạ chất lượng. Bản ghi gián đoạn vẫn được giữ trong Kho Video.";
+  let closed = false, callback;
   function next() {
     if (closed) return;
-    try {
-      if (preview.videoWidth !== canvas.width || preview.videoHeight !== canvas.height) throw Error("Camera resized");
-      draw();
-      // The periodic canvas capture timer can otherwise miss camera callbacks.
-      track.requestFrame();
-      frames++;
-    } catch {
-      fail?.(qualityError);
-      return;
-    }
+    draw();
+    // The periodic canvas capture timer can otherwise miss camera callbacks.
+    track.requestFrame();
     callback = preview.requestVideoFrameCallback(next);
   }
   callback = preview.requestVideoFrameCallback(next);
@@ -71,29 +63,9 @@ export function recordingVideo(preview, stream, mirrored) {
         probe.load();
       }
     },
-    monitor(interrupted) {
-      let at = performance.now(), count = frames;
-      fail = reason => {
-        clearInterval(qualityTimer);
-        fail = undefined;
-        interrupted(reason);
-      };
-      // Track the real draw throughput, not merely the nominal canvas FPS.
-      // An incapable device must stop explicitly instead of saving a completed
-      // low-FPS recording. Never lower resolution, frame rate or bitrate.
-      qualityTimer = setInterval(() => {
-        const now = performance.now(), elapsed = now - at;
-        const fps = (frames - count) * 1000 / elapsed;
-        at = now;
-        count = frames;
-        if (fps < frameRate * .9) fail?.(qualityError);
-      }, 1500);
-    },
     close() {
       if (closed) return;
       closed = true;
-      clearInterval(qualityTimer);
-      fail = undefined;
       preview.cancelVideoFrameCallback(callback);
       track.stop();
       canvas.width = canvas.height = 0;
@@ -120,12 +92,6 @@ export async function createPreviewRecording(core, preview, capture, changed, in
     recording = await core.VideoSession.create(output.stream, changed, interrupted, source, capture.context);
     const stop = recording.stop.bind(recording);
     recording.stop = async () => { try { await stop(); } finally { close(); } };
-    const start = recording.start.bind(recording);
-    recording.start = onStarted => start(() => {
-      // Reuse VideoSession's existing interruption/manifest finalization path.
-      output.monitor(reason => recording.interrupt(reason));
-      onStarted?.();
-    });
     // The generated track cannot relay interruption events from its camera.
     if (output.stream !== capture.stream) {
       camera.addEventListener("ended", ended);
