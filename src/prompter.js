@@ -318,7 +318,7 @@ export function openPrompter(source, callbacks, initialContext) {
     const currentCapture = capture, token = ++request;
     try {
       const recording = await core.VideoSession.create(currentCapture.stream, () => {}, reason => { void stopRecording(reason); },
-        {owner:source.owner, contentId:source.id, title:source.title, framing:prefs.framing});
+        {owner:source.owner, contentId:source.id, title:source.title, framing:prefs.framing}, currentCapture.context);
       if (destroyed || token !== request || capture !== currentCapture) { void recording.stop(); return; }
       session = recording;
       startTimeout = window.setTimeout(() => {
