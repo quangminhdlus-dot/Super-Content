@@ -1,6 +1,5 @@
 const iconPaths = {
   back: "M19 12H5m7 7-7-7 7-7",
-  flip: "M4 10a8 8 0 0 1 13-4l3 3m0-5v5h-5m5 5a8 8 0 0 1-13 4l-3-3m0 5v-5h5",
   camera: "M4 7h4l2-2h4l2 2h4v12H4z M15 13a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
   mic: "M9 5a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0z M5 11a7 7 0 0 0 14 0m-7 7v4m-3 0h6",
   gear: "M9 3h6l1 3 3 1 2 4-2 2v3l-4 3-3-1-3 1-4-3v-3l-2-2 2-4 3-1z M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
@@ -16,8 +15,11 @@ export function createStudioView(readOnly) {
   overlay.setAttribute("aria-label", readOnly ? "Nhắc chữ" : "Quay với Prompter");
   overlay.innerHTML = `
     <div class="sc-p-backdrop" data-p="background" aria-hidden="true">
-      <video data-p="camera" class="sc-p-camera-video" autoplay muted playsinline aria-hidden="true"></video>
-      <div class="sc-p-blackout" data-p="blackout"></div>
+      <div class="sc-p-camera-frame" data-p="cameraFrame" hidden>
+        <video data-p="camera" class="sc-p-camera-video" autoplay muted playsinline aria-hidden="true"></video>
+        <div class="sc-p-blackout" data-p="blackout"></div>
+        <div class="sc-p-camera-grid"></div>
+      </div>
     </div>
     <header class="sc-p-top">
       ${iconButton("back", "Về kịch bản", "back")}
@@ -27,7 +29,6 @@ export function createStudioView(readOnly) {
         <span data-p="recordTime" class="sc-p-live" hidden></span>
         <span data-p="status" class="sc-p-message" role="status"></span>
       </div>
-      ${iconButton("flip", "Đổi camera", "flip")}
     </header>
     <div class="sc-p-stage" data-p="stage">
       <div class="sc-p-scroll" data-p="scroll" tabindex="0" aria-label="Nội dung kịch bản">
@@ -38,11 +39,6 @@ export function createStudioView(readOnly) {
         <button type="button" class="sc-p-grip" role="slider" aria-label="Vị trí đọc bên phải" aria-orientation="vertical"></button>
       </div>
       <div data-p="count" class="sc-p-count" role="status" hidden></div>
-      <div data-p="preview" class="sc-p-preview" hidden>
-        <span class="sc-p-preview-label">Toàn khung ghi</span>
-        ${iconButton("close", "Đóng xem camera", "previewClose")}
-        <div class="sc-p-preview-area" data-p="previewArea"><div class="sc-p-camera-grid" aria-label="Lưới căn chỉnh 3×3"></div></div>
-      </div>
     </div>
     <footer class="sc-p-bottom">
       <button type="button" data-p="retry" class="sc-p-secondary" hidden>Thử lại</button>
@@ -54,7 +50,7 @@ export function createStudioView(readOnly) {
       </div>
       <label class="sc-p-range" data-p="speedRow" hidden><span>WPM</span><input type="range" min="50" max="260" step="5" data-p="speed" aria-label="Tốc độ đọc"><output data-p="speedValue"></output></label>
       <div class="sc-p-actions">
-        ${iconButton("camera", "Xem camera", "previewBtn")}
+        ${iconButton("camera", "Đổi camera", "flip")}
         <button type="button" class="sc-p-record" data-p="record" aria-label="Bắt đầu quay"><span></span></button>
         ${iconButton("gear", "Cài đặt", "settingsBtn")}
       </div>

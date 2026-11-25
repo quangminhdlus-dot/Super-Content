@@ -62,9 +62,8 @@ export function openPrompter(source, callbacks, initialContext) {
   overlay.dataset.title = source.title;
   el.script.setAttribute("aria-label", source.title || "Kịch bản");
   el.script.textContent = source.text;
-  el.flip.hidden = el.cameraState.hidden = el.previewBtn.hidden = readOnly;
+  el.flip.hidden = el.cameraState.hidden = readOnly;
   el.framingRow.hidden = el.countdownRow.hidden = el.draftsBtn.hidden = el.background.hidden = el.coverRow.hidden = readOnly;
-  el.previewBtn.title = "Xem toàn bộ khung hình ghi";
   el.cover.value = prefs.cover;
   applyCover();
   el.wake.disabled = !navigator.wakeLock;
@@ -109,7 +108,6 @@ export function openPrompter(source, callbacks, initialContext) {
     el.flip.title = facing === "user" ? "Camera trước" : "Camera sau";
     el.framing.disabled = el.mic.disabled = !!capturePending || phase !== "idle";
     el.draftsBtn.disabled = phase !== "idle" || !!session;
-    el.previewBtn.disabled = !camera || camera.readyState !== "live";
     el.count.hidden = phase !== "countdown";
     el.retry.hidden = !captureError && voicePhase !== "error";
     let status = message || captureError;
@@ -188,17 +186,10 @@ export function openPrompter(source, callbacks, initialContext) {
     el.signal.value = 0;
     el.camera.pause();
     el.camera.srcObject = null;
+    el.cameraFrame.hidden = true;
     cameraFrame = "";
     if (capture) core.closeCapture(capture);
     capture = undefined;
-  }
-
-  function showPreview(visible) {
-    el.preview.hidden = !visible;
-    if (visible) el.previewArea.prepend(el.camera);
-    else el.background.prepend(el.camera);
-    el.camera.classList.toggle("show", visible);
-    if (capture?.stream.getVideoTracks().length) void el.camera.play().catch(() => {});
   }
 
   function watchCapture(input) {
@@ -216,6 +207,8 @@ export function openPrompter(source, callbacks, initialContext) {
       for (const type of ["mute", "unmute", "ended"]) track.addEventListener(type, update, {signal:captureEvents.signal});
     }
     if (!readOnly) {
+      const actualFacing = input.stream.getVideoTracks()[0]?.getSettings().facingMode ?? facing;
+      el.camera.classList.toggle("mirrored", actualFacing === "user");
       if (el.camera.srcObject === input.stream) el.camera.srcObject = null;
       el.camera.srcObject = input.stream;
       void el.camera.play().catch(() => {});
@@ -230,6 +223,7 @@ export function openPrompter(source, callbacks, initialContext) {
     captureError = "";
     const chosen = {facing, framing:prefs.framing, mic:prefs.mic};
     cameraFrame = "";
+    el.cameraFrame.hidden = true;
     const unlockedContext = initialContext;
     initialContext = undefined;
     const open = async () => {
@@ -521,12 +515,13 @@ export function openPrompter(source, callbacks, initialContext) {
       syncControls();
     } else if (phase === "recording") void stopRecording();
     else if (phase === "waiting" || phase === "countdown") usePhase("idle");
-    else if (phase === "idle") {
-      showPreview(false);
-      requestRecording();
-    }
+    else if (phase === "idle") requestRecording();
   });
-  listen(el.flip, "click", () => { facing = facing === "user" ? "environment" : "user"; void prepare(true); });
+  listen(el.flip, "click", () => {
+    if (phase !== "idle" || capturePending || !core || readOnly) return;
+    facing = facing === "user" ? "environment" : "user";
+    void prepare(true);
+  });
   listen(el.retry, "click", () => {
     message = "";
     if (captureError) {
@@ -541,7 +536,8 @@ export function openPrompter(source, callbacks, initialContext) {
     const {videoWidth, videoHeight} = el.camera;
     if (!capture || !videoWidth || !videoHeight) return;
     cameraFrame = frameOrientation(videoWidth, videoHeight);
-    el.previewArea.style.setProperty("--sc-p-ratio", videoWidth / videoHeight);
+    el.cameraFrame.style.setProperty("--sc-p-ratio", videoWidth / videoHeight);
+    el.cameraFrame.hidden = false;
     maybeCountdown();
     syncControls();
   }
@@ -553,10 +549,7 @@ export function openPrompter(source, callbacks, initialContext) {
     const mismatch = review.meta.framing && review.meta.framing !== frameOrientation(videoWidth, videoHeight);
     el.reviewOrientation.textContent = frameLabel(videoWidth, videoHeight) + (mismatch ? " · Tệp do trình duyệt tạo khác tỷ lệ đã chọn." : "");
   });
-  listen(el.previewBtn, "click", () => showPreview(true));
-  listen(el.previewClose, "click", () => showPreview(false));
   listen(el.settingsBtn, "click", async () => {
-    showPreview(false);
     showPanel(el.settings);
     try {
       const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput");
@@ -603,8 +596,7 @@ export function openPrompter(source, callbacks, initialContext) {
   listen(el.back, "click", close);
   listen(overlay, "cancel", event => {
     event.preventDefault();
-    if (el.preview.hidden === false) showPreview(false);
-    else if (el.settings.hidden === false) showPanel(null);
+    if (el.settings.hidden === false) showPanel(null);
     else if (el.review.hidden === false && !reviewBusy) retake();
     else if (!session && phase !== "starting") close();
   });

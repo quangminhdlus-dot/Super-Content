@@ -41,12 +41,17 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
         canvas.width = wide ? 640 : 360;
         canvas.height = wide ? 360 : 640;
         const paint = canvas.getContext("2d");
+      function draw() {
+        paint.fillStyle = "#e02828";
+        paint.fillRect(0, 0, canvas.width / 2, canvas.height);
         paint.fillStyle = "#26a471";
-        paint.fillRect(0,0,canvas.width,canvas.height);
+        paint.fillRect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+      }
+      draw();
         const [track] = canvas.captureStream(24).getVideoTracks();
         const timer = setInterval(() => {
           if (track.readyState === "ended") return clearInterval(timer);
-          paint.fillRect(0,0,canvas.width,canvas.height);
+        draw();
         }, 40);
         stream.addTrack(track);
       }
@@ -104,8 +109,10 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await expect(studio.getByTestId("reader")).toContainText("Câu cuối vừa được sửa.");
   await expect(studio.locator("iframe")).toHaveCount(0);
   await expect(studio.getByRole("button", {name:/Chuẩn bị camera/})).toHaveCount(0);
-  const preview = studio.getByRole("button", {name:"Xem camera"});
-  await expect(preview).toBeEnabled();
+  const flip = studio.getByRole("button", {name:"Đổi camera"});
+  await expect(flip).toBeEnabled();
+  await expect(studio.locator(".sc-p-top").getByRole("button", {name:"Đổi camera"})).toHaveCount(0);
+  await expect(studio.getByRole("button", {name:"Xem camera"})).toHaveCount(0);
   const beforePreview = (await inputs()).length;
   await expect.poll(() => studio.locator(".sc-p-camera-video").evaluate(video => [video.videoWidth,video.videoHeight])).toEqual([360,640]);
   const cameraVideo = studio.locator(".sc-p-camera-video");
@@ -118,7 +125,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
     node.dispatchEvent(new Event("input", {bubbles:true}));
   }, value);
   await expect(blackout).toHaveCSS("opacity", "0.9");
-  await expect(cameraVideo).toHaveCSS("object-fit", "cover");
+  await expect(cameraVideo).toHaveCSS("object-fit", "contain");
   await expect(cameraVideo).toHaveCSS("opacity", "1");
   await expect(blackout).toHaveCSS("pointer-events", "none");
   expect(await blackout.boundingBox()).toEqual(await cameraVideo.boundingBox());
@@ -131,21 +138,41 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await closeSettings.click();
   expect((await inputs()).length).toBe(beforePreview);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("super-content:prompter")).mic)).toBe("");
-  await preview.click();
-  await expect(studio.locator(".sc-p-camera-grid")).toBeVisible();
-  await expect(studio.locator(".sc-p-camera-video")).toHaveCSS("transform", "none");
-  await studio.getByRole("button", {name:"Đóng xem camera"}).click();
+  const grid = studio.locator(".sc-p-camera-grid");
+  await expect(grid).toBeVisible();
+  await expect(grid).toHaveCSS("pointer-events", "none");
+  expect(await grid.boundingBox()).toEqual(await cameraVideo.boundingBox());
+  async function visibleColors() {
+    const screenshot = await cameraVideo.screenshot();
+    return page.evaluate(async encoded => {
+      const bitmap = await createImageBitmap(await (await fetch("data:image/png;base64," + encoded)).blob());
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext("2d");
+      context.drawImage(bitmap, 0, 0);
+      return [.04, .96].map(side => {
+        const [red, green] = context.getImageData(Math.floor(side * bitmap.width), Math.floor(.3 * bitmap.height), 1, 1).data;
+        return red > green ? "red" : "green";
+      });
+    }, screenshot.toString("base64"));
+  }
+  await expect(cameraVideo).toHaveCSS("transform", "matrix(-1, 0, 0, 1, 0, 0)");
+  expect(await visibleColors()).toEqual(["green", "red"]);
   expect((await inputs()).length).toBe(beforePreview);
   const microphone = await page.evaluateHandle(() => window.inputs.at(-1).stream.getAudioTracks()[0]);
   const front = await page.evaluateHandle(() => window.inputs.at(-1).stream.getVideoTracks()[0]);
-  await studio.getByRole("button", {name:"Đổi camera"}).click();
-  await expect(preview).toBeEnabled();
+  await flip.click();
+  await expect(flip).toBeEnabled();
+  await expect(cameraVideo).toHaveCSS("transform", "none");
+  expect(await visibleColors()).toEqual(["red", "green"]);
   expect((await inputs()).at(-1).video.facingMode.ideal).toBe("environment");
   expect(await page.evaluate(() => window.inputs.at(-1).constraints.audio)).toBe(false);
   expect(await microphone.evaluate(track => track.readyState)).toBe("live");
   expect(await front.evaluate(track => track.readyState)).toBe("ended");
   await expect(studio.getByRole("button", {name:"Thử lại"})).toBeHidden();
   await expect(blackout).toHaveCSS("opacity", "0.5");
+  await flip.click();
+  await expect(flip).toBeEnabled();
+  await expect(cameraVideo).toHaveCSS("transform", "matrix(-1, 0, 0, 1, 0, 0)");
 
   const left = studio.getByRole("slider", {name:"Vị trí đọc bên trái"});
   const right = studio.getByRole("slider", {name:"Vị trí đọc bên phải"});
@@ -174,7 +201,9 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await expect(studio.locator(".sc-p-live")).toBeHidden();
   await expect(studio.getByRole("button", {name:"Dừng quay"})).toBeVisible();
   await expect(studio.locator(".sc-p-live")).toContainText("ĐANG QUAY");
-  await expect(studio.locator(".sc-p-preview")).toBeHidden();
+  await expect(flip).toBeDisabled();
+  await expect(grid).toBeVisible();
+  expect(await visibleColors()).toEqual(["green", "red"]);
   const captureCount = (await inputs()).length;
   await settings.click();
   await setCover(100);
@@ -196,15 +225,26 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await expect.poll(() => recorded.evaluate(video => video.readyState >= 2 && video.videoWidth > 0)).toBe(true);
   await recorded.evaluate(async video => { video.muted = true; await video.play(); });
   await expect.poll(() => recorded.evaluate(video => video.currentTime)).toBeGreaterThan(.3);
-  const light = await recorded.evaluate(video => {
+  const frame = await recorded.evaluate(video => {
     const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 32;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
-    context.drawImage(video, 0, 0, 32, 32);
-    const rgba = context.getImageData(0, 0, 32, 32).data;
-    return rgba.filter((channel, index) => index % 4 !== 3 && channel > 40).length;
+    context.drawImage(video, 0, 0);
+    const {width, height} = canvas;
+    const {data} = context.getImageData(0, 0, width, height);
+    let unexpectedPixels = 0;
+    for (let y = 4; y < height - 4; y++) {
+      for (let x = 4; x < width - 4; x++) {
+        if (Math.abs(x - width / 2) < 4) continue;
+        const offset = (y * width + x) * 4;
+        const expected = x < width / 2 ? [224, 40, 40] : [38, 164, 113];
+        if (expected.some((value, channel) => Math.abs(data[offset + channel] - value) > 25)) unexpectedPixels++;
+      }
+    }
+    return {unexpectedPixels};
   });
-  expect(light).toBeGreaterThan(0);
+  expect(frame.unexpectedPixels).toBe(0);
 
 
   await expect(studio.locator("[data-p=reviewTitle]")).toHaveText("1. Kịch bản trước đây");
@@ -250,7 +290,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
     if (rename) await page.locator("#video-title").fill(rename);
     await page.getByRole("button", {name:"Quay với Prompter"}).click();
     await expect(studio.getByTestId("reader")).toHaveCSS("font-size", "46px");
-    await expect(preview).toBeEnabled();
+    await expect(flip).toBeEnabled();
     if (chooseLandscape) {
       await settings.click();
       await expect(studio.getByLabel("Hướng quay")).toHaveValue("portrait");
@@ -258,6 +298,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
       await closeSettings.click();
     }
     await expect.poll(() => cameraVideo.evaluate(video => [video.videoWidth,video.videoHeight])).toEqual([640,360]);
+    expect(await grid.boundingBox()).toEqual(await cameraVideo.boundingBox());
     await studio.getByRole("button", {name:"Bắt đầu quay"}).click();
     await expect(studio.locator(".sc-p-live")).toContainText(/0:0[1-9]/);
     await studio.getByRole("button", {name:"Dừng quay"}).click();
@@ -309,7 +350,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await page.locator('[data-view="script"]:visible').click();
   await page.locator(".video-main").first().click();
   await page.getByRole("button", {name:"Quay với Prompter"}).click();
-  await expect(preview).toBeEnabled();
+  await expect(flip).toBeEnabled();
   await expect.poll(() => cameraVideo.evaluate(video => video.videoWidth)).toBe(640);
   await cameraVideo.evaluate(video => {
     Object.defineProperty(video,"videoWidth",{configurable:true,value:360});
