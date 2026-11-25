@@ -45,8 +45,11 @@ export function parseTitles(text, videos) {
 }
 export function transition(video, stage) {
   if (!STAGES.includes(stage)) throw new Error("Công đoạn không hợp lệ");
+  const moveIdeaText = video.stage === "ideas" && stage === "script" &&
+    !video.script?.trim() && video.notes?.trim();
   return {
     ...video,
+    ...(moveIdeaText ? {script: video.notes, notes: ""} : {}),
     stage,
     published_at:
       stage === "published"

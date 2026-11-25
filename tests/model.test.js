@@ -68,6 +68,14 @@ test("publication date is set on publish, never on idea recording, and refreshed
   assert.notEqual(republished.published_at, "2020-01-01T00:00:00.000Z");
 });
 
+test("moving ideas to script moves text verbatim and preserves existing scripts", () => {
+  const notes = "Đoạn thứ nhất.  \n\n  Đoạn thứ hai.";
+  const idea = {...createVideo("Ý tưởng"), notes, source_url:"https://example.com"};
+  assert.deepEqual(transition(idea, "script"), {...idea, stage:"script", script:notes, notes:""});
+  const drafted = {...idea, script:"Kịch bản hiện có"};
+  assert.deepEqual(transition(drafted, "script"), {...drafted, stage:"script"});
+});
+
 test("legacy filming rows appear in scripts with their original stage", () => {
   const video = { ...createVideo("Kịch bản đã lưu"), stage: "filming" };
   assert.equal(visible(video, "script"), true);

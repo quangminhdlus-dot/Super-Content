@@ -2,7 +2,7 @@ import {createStudioView} from "./prompter-view.js";
 import {createStudioReader} from "./prompter-reader.js";
 import "./prompter.css";
 import {clipFile, clipName, confirmClipRemoval, exportClip, frameLabel, frameOrientation, loadVideoRuntime} from "./video-files.js";
-const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", framingVersion: 1, cover: 90, wake: true, mic: "" };
+const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", framingVersion: 1, cover: 90 };
 const preferenceKey = "super-content:prompter";
 const clamp = (value, min, max) => Math.min(max, Math.max(value, min));
 const readyPhases = new Set(["listening", "recognizing", "processing", "recognized"]);
@@ -21,8 +21,6 @@ function preferences() {
       framing: stored?.framingVersion === 1 && p.framing === "landscape" ? "landscape" : "portrait",
       framingVersion: 1,
       cover: Number.isFinite(p.cover) ? clamp(Math.round(p.cover), 0, 100) : defaults.cover,
-      wake: p.wake === true,
-      mic: typeof p.mic === "string" ? p.mic : "",
     };
   } catch {
     return { ...defaults };
@@ -66,12 +64,10 @@ export function openPrompter(source, callbacks, initialContext) {
   el.framingRow.hidden = el.countdownRow.hidden = el.draftsBtn.hidden = el.background.hidden = el.coverRow.hidden = readOnly;
   el.cover.value = prefs.cover;
   applyCover();
-  el.wake.disabled = !navigator.wakeLock;
   el.font.value = prefs.font;
   el.speed.value = prefs.wpm;
   el.countdown.value = prefs.countdown;
   el.framing.value = prefs.framing;
-  el.wake.checked = prefs.wake;
 
   function applyCover() {
     el.blackout.style.opacity = String(prefs.cover / 100);
@@ -106,7 +102,7 @@ export function openPrompter(source, callbacks, initialContext) {
     el.flip.disabled = !core || !!capturePending || phase !== "idle";
     el.flip.setAttribute("aria-pressed", String(facing === "environment"));
     el.flip.title = facing === "user" ? "Camera trước" : "Camera sau";
-    el.framing.disabled = el.mic.disabled = !!capturePending || phase !== "idle";
+    el.framing.disabled = !!capturePending || phase !== "idle";
     el.draftsBtn.disabled = phase !== "idle" || !!session;
     el.count.hidden = phase !== "countdown";
     el.retry.hidden = !captureError && voicePhase !== "error";
@@ -221,7 +217,7 @@ export function openPrompter(source, callbacks, initialContext) {
     const current = cameraOnly && capture?.stream.getAudioTracks().some(track => track.readyState === "live") ? capture : undefined;
     if (!current) releaseCapture();
     captureError = "";
-    const chosen = {facing, framing:prefs.framing, mic:prefs.mic};
+    const chosen = {facing, framing:prefs.framing};
     cameraFrame = "";
     el.cameraFrame.hidden = true;
     const unlockedContext = initialContext;
@@ -232,16 +228,11 @@ export function openPrompter(source, callbacks, initialContext) {
         if (!destroyed) watchCapture(current);
         return;
       }
-      const input = readOnly ? await core.openMicrophone(chosen.mic, unlockedContext) :
-        await core.openCapture(chosen.framing, chosen.mic, chosen.facing, unlockedContext);
+      const input = readOnly ? await core.openMicrophone("", unlockedContext) :
+        await core.openCapture(chosen.framing, "", chosen.facing, unlockedContext);
       if (destroyed || (readOnly && (prefs.mode !== "voice" || !reading))) {
         core.closeCapture(input);
         return;
-      }
-      if (input.microphoneReset && prefs.mic === chosen.mic) {
-        prefs.mic = "";
-        el.mic.value = "";
-        savePreferences();
       }
       capture = input;
       watchCapture(input);
@@ -457,7 +448,7 @@ export function openPrompter(source, callbacks, initialContext) {
   }
 
   async function updateWake() {
-    if (destroyed || !prefs.wake || document.hidden) {
+    if (destroyed || document.hidden) {
       const previous = wakeLock;
       wakeLock = undefined;
       await previous?.release().catch(() => {});
@@ -467,7 +458,7 @@ export function openPrompter(source, callbacks, initialContext) {
     updateWake.pending = true;
     try {
       const lock = await navigator.wakeLock.request("screen");
-      if (destroyed || !prefs.wake || document.hidden) await lock.release();
+      if (destroyed || document.hidden) await lock.release();
       else wakeLock = lock;
     } catch {} finally { updateWake.pending = false; }
   }
@@ -549,22 +540,9 @@ export function openPrompter(source, callbacks, initialContext) {
     const mismatch = review.meta.framing && review.meta.framing !== frameOrientation(videoWidth, videoHeight);
     el.reviewOrientation.textContent = frameLabel(videoWidth, videoHeight) + (mismatch ? " · Tệp do trình duyệt tạo khác tỷ lệ đã chọn." : "");
   });
-  listen(el.settingsBtn, "click", async () => {
-    showPanel(el.settings);
-    try {
-      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput");
-      el.mic.replaceChildren(new Option("Micro hệ thống", ""));
-      for (const device of devices) {
-        if (device.deviceId && device.deviceId !== "default") el.mic.add(new Option(device.label || "Micro ngoài", device.deviceId));
-      }
-      el.mic.value = prefs.mic;
-      if (el.mic.selectedIndex < 0) el.mic.selectedIndex = 0;
-    } catch {}
-  });
+  listen(el.settingsBtn, "click", () => showPanel(el.settings));
   listen(el.settingsClose, "click", () => showPanel(null));
   listen(el.framing, "change", () => { prefs.framing = el.framing.value; savePreferences(); void prepare(true); });
-  listen(el.mic, "change", () => { prefs.mic = el.mic.value; savePreferences(); void prepare(); });
-  listen(el.wake, "change", () => { prefs.wake = el.wake.checked; savePreferences(); void updateWake(); });
   listen(el.countdown, "change", () => {
     prefs.countdown = clamp(Math.round(el.countdown.valueAsNumber || 3), 1, 10);
     el.countdown.value = prefs.countdown;

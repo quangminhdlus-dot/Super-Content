@@ -8,6 +8,86 @@ test.use({
   },
 });
 
+test("video library removes only confirmed local selections and retains failures", async ({page}) => {
+  await page.goto("./");
+  await page.evaluate(async () => {
+    const store = await (await navigator.storage.getDirectory()).getDirectoryHandle("super-prompter-recordings",{create:true});
+    for (let number = 1; number <= 10; number++) {
+      const id = "test-clip-" + number;
+      const dir = await store.getDirectoryHandle(id,{create:true});
+      async function write(name, value) {
+        const writable = await (await dir.getFileHandle(name,{create:true})).createWritable();
+        await writable.write(value);
+        await writable.close();
+      }
+      await write("0.chunk", new Blob([new Uint8Array(1024)]));
+      await write("manifest.json", JSON.stringify({
+        id, owner:number === 10 ? "other-account" : "demo", title:"Bản thử " + number,
+        take:number, mime:"video/mp4", created:"2026-11-25T10:00:00Z", chunks:1, bytes:1024, seconds:2, complete:true,
+      }));
+      if (number === 1) await write("saved.txt","2026-11-25T10:01:00Z");
+    }
+    await new Promise(ready => {
+      void navigator.locks.request("super-content-video:test-clip-9", () => new Promise(release => {
+        window.releaseVideoLock = release;
+        ready();
+      }));
+    });
+    const remove = FileSystemDirectoryHandle.prototype.removeEntry;
+    FileSystemDirectoryHandle.prototype.removeEntry = function(name, options) {
+      if (window.failVideoRemoval && name === "test-clip-5") return Promise.reject(new Error("Lỗi ổ đĩa giả lập"));
+      return remove.call(this, name, options);
+    };
+  });
+  const tab = name => page.locator(`[data-view="${name}"]:visible`);
+  await tab("video").click();
+  const library = page.locator(".video-library");
+  const rows = library.locator(".video-library-row");
+  const checkbox = number => library.getByRole("checkbox", {name:new RegExp(`Bản thử ${number}$`)});
+  const confirmation = page.locator(".library-delete");
+  const removeSelected = async (count, cancel = false) => {
+    await library.getByRole("button", {name:"Xóa đã chọn"}).click();
+    await expect(confirmation).toHaveText(new RegExp(`Xóa vĩnh viễn ${count} video đã chọn khỏi thiết bị[?]`));
+    await confirmation.getByRole("button", {name:cancel ? "Hủy" : `Xóa ${count} video`, exact:true}).click();
+  };
+  await expect(rows).toHaveCount(8);
+  await checkbox(1).check();
+  await expect(library.locator("[data-selected]")).toHaveText("1 video đã chọn · 1 KB");
+  await removeSelected(1);
+  await expect(rows).toHaveCount(7);
+  for (const number of [2,3,4]) await checkbox(number).check();
+  await removeSelected(3);
+  await expect(rows).toHaveCount(4);
+  await page.evaluate(() => { window.failVideoRemoval = true; });
+  await checkbox(5).check();
+  await checkbox(6).check();
+  await removeSelected(2);
+  await expect(library.locator("[data-removal-status]")).toHaveText("Đã xóa 1 video. Không xóa được 1 video.");
+  await expect(checkbox(5)).toBeChecked();
+  await expect(rows).toHaveCount(3);
+  await expect(library.locator("[data-total]")).toContainText("3 KB");
+  await library.getByRole("button", {name:"Bỏ chọn", exact:true}).click();
+  await expect(checkbox(5)).not.toBeChecked();
+  await library.getByRole("button", {name:"Chọn tất cả"}).click();
+  await removeSelected(3, true);
+  await expect(rows).toHaveCount(3);
+  await expect(library.getByRole("checkbox", {checked:true})).toHaveCount(3);
+  await page.evaluate(() => { window.failVideoRemoval = false; });
+  await removeSelected(3);
+  await expect(library.locator("[data-total]")).toHaveText("Chưa có video.");
+  await tab("ideas").click();
+  await tab("video").click();
+  await expect(library.locator("[data-total]")).toHaveText("Chưa có video.");
+  const remaining = await page.evaluate(async () => {
+    const store = await (await navigator.storage.getDirectory()).getDirectoryHandle("super-prompter-recordings");
+    const keys = [];
+    for await (const key of store.keys()) keys.push(key);
+    window.releaseVideoLock();
+    return keys.sort();
+  });
+  expect(remaining).toEqual(["test-clip-10","test-clip-9"]);
+});
+
 test("opens the script directly, adjusts the reader and saves a recoverable recording", async ({page, context}) => {
   test.setTimeout(60000);
   const requests = [];
@@ -98,8 +178,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await read.getByRole("button", {name:"Đóng cài đặt"}).click();
   await expect.poll(async () => (await inputs()).length).toBe(1);
   expect((await inputs())[0].video).toBe(false);
-  expect(await page.evaluate(() => window.attempts.slice(0,2).map(item => item.audio.deviceId))).toEqual([{ideal:"expired"}, undefined]);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("super-content:prompter")).mic)).toBe("");
+  expect(await page.evaluate(() => window.attempts.map(item => item.audio.deviceId))).toEqual([undefined]);
   await read.getByRole("button", {name:"Về kịch bản"}).click();
   await page.evaluate(() => { const key = "super-content:prompter"; localStorage.setItem(key, JSON.stringify({...JSON.parse(localStorage.getItem(key)), mic:"expired"})); });
 
@@ -130,6 +209,8 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await expect(blackout).toHaveCSS("pointer-events", "none");
   expect(await blackout.boundingBox()).toEqual(await cameraVideo.boundingBox());
   await settings.click();
+  await expect(studio.getByText("Giữ màn hình sáng", {exact:true})).toHaveCount(0);
+  await expect(studio.getByRole("combobox", {name:"Micro"})).toHaveCount(0);
   for (const level of [0, 50, 90, 100, 50]) {
     await setCover(level);
     await expect(blackout).toHaveCSS("opacity", String(level / 100));
@@ -137,11 +218,15 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   }
   await closeSettings.click();
   expect((await inputs()).length).toBe(beforePreview);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("super-content:prompter")).mic)).toBe("");
+  expect(await page.evaluate(() => window.attempts.every(item => !item.audio?.deviceId))).toBe(true);
   const grid = studio.locator(".sc-p-camera-grid");
   await expect(grid).toBeVisible();
   await expect(grid).toHaveCSS("pointer-events", "none");
   expect(await grid.boundingBox()).toEqual(await cameraVideo.boundingBox());
+  const eyeLine = grid.locator(".sc-p-eye-line");
+  await expect(eyeLine).toHaveCSS("height", "2px");
+  const guide = await grid.boundingBox(), line = await eyeLine.boundingBox();
+  expect(Math.abs(line.y + 1 - guide.y - guide.height / 3)).toBeLessThan(1);
   async function visibleColors() {
     const screenshot = await cameraVideo.screenshot();
     return page.evaluate(async encoded => {

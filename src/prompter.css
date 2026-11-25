@@ -174,9 +174,26 @@ button.sc-p-grip {
   background:
     linear-gradient(var(--sc-p-grid-line), var(--sc-p-grid-line)) 33.333% 0 / 1px 100% no-repeat,
     linear-gradient(var(--sc-p-grid-line), var(--sc-p-grid-line)) 66.667% 0 / 1px 100% no-repeat,
-    linear-gradient(var(--sc-p-grid-line), var(--sc-p-grid-line)) 0 33.333% / 100% 1px no-repeat,
     linear-gradient(var(--sc-p-grid-line), var(--sc-p-grid-line)) 0 66.667% / 100% 1px no-repeat;
 }
+.sc-p-eye-line {
+  --sc-p-eye-color: #93c5fdad;
+  position: absolute;
+  inset-inline: 0;
+  top: 33.333%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--sc-p-eye-color);
+}
+.sc-p-eye-line::before, .sc-p-eye-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-block: 4px solid transparent;
+}
+.sc-p-eye-line::before { left: 0; border-left: 6px solid var(--sc-p-eye-color); }
+.sc-p-eye-line::after { right: 0; border-right: 6px solid var(--sc-p-eye-color); }
 
 .sc-p-sheet {
   position: absolute;

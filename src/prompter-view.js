@@ -18,7 +18,7 @@ export function createStudioView(readOnly) {
       <div class="sc-p-camera-frame" data-p="cameraFrame" hidden>
         <video data-p="camera" class="sc-p-camera-video" autoplay muted playsinline aria-hidden="true"></video>
         <div class="sc-p-blackout" data-p="blackout"></div>
-        <div class="sc-p-camera-grid"></div>
+        <div class="sc-p-camera-grid"><div class="sc-p-eye-line"></div></div>
       </div>
     </div>
     <header class="sc-p-top">
@@ -63,8 +63,6 @@ export function createStudioView(readOnly) {
         Độ phủ đen của camera
         <span><input type="range" min="0" max="100" step="1" data-p="cover" aria-label="Độ phủ đen của camera"><output data-p="coverValue"></output></span>
       </label>
-      <label>Giữ màn hình sáng <input type="checkbox" data-p="wake"></label>
-      <details data-p="advanced"><summary>Micro</summary><label>Thiết bị <select data-p="mic" aria-label="Micro"><option value="">Micro hệ thống</option></select></label></details>
       <button type="button" data-p="draftsBtn" class="sc-p-secondary">Kho Video</button>
     </section>
     <section class="sc-p-sheet sc-p-review" data-p="review" role="region" aria-label="Xem lại video" hidden>

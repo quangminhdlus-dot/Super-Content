@@ -2375,6 +2375,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .video-library p { margin: .2rem 0 .65rem; }
 .video-library-row { display: grid; gap: .6rem; padding: .75rem 0; border-top: 1px solid var(--line); }
 .video-library-row small { display: block; overflow-wrap: anywhere; }
+.video-library [hidden] { display: none !important; }
+.video-library-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .65rem; }
+.video-library-item input { width: 20px; height: 20px; margin: .15rem 0 0; }
+.library-delete { width: min(94vw, 440px); }
+.library-delete h2 { margin: 0 0 .75rem; font-size: 1rem; }
 .video-library-row .clip-title { padding: 0; text-align: left; font-weight: 700; overflow-wrap: anywhere; }
 .video-library-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .video-library-actions button { min-height: 44px; padding: .4rem .65rem; }

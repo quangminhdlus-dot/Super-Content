@@ -1,5 +1,28 @@
 import { test, expect } from "@playwright/test";
 
+test("ideas just moved to scripts precede older transitions after reload", async ({page}) => {
+  await page.goto("./");
+  const text = "Đoạn thứ nhất.  \n\n  Đoạn thứ hai.";
+  for (const name of ["Ý tưởng A", "Ý tưởng B"]) {
+    await page.getByRole("button", {name:"Thêm ý tưởng", exact:true}).click();
+    await page.locator("#new-idea-title").fill(name);
+    await page.locator("#new-idea-content").fill("Nội dung ban đầu");
+    await page.getByRole("button", {name:"Lưu ý tưởng"}).click();
+  }
+  for (const name of ["Ý tưởng B", "Ý tưởng A"]) {
+    await page.locator('[data-view="ideas"]:visible').click();
+    await page.locator(".video-main").filter({hasText:name}).click();
+    await page.locator("#idea-content").fill(text);
+    await page.getByRole("button", {name:"Chuyển sang Kịch bản"}).click();
+    await expect(page.locator("#script")).toHaveValue(text);
+  }
+  await page.reload();
+  await page.locator('[data-view="script"]:visible').click();
+  await expect(page.locator(".video-main strong")).toHaveText(["Ý tưởng A","Ý tưởng B"]);
+  await page.locator(".video-main").first().click();
+  await expect(page.locator("#script")).toHaveValue(text);
+});
+
 async function fakeSpeech(page) {
   await page.addInitScript(() => {
     window.dictations = [];
@@ -79,7 +102,8 @@ test("next-stage button is below the idea textarea and opens the same item in sc
   await next.click();
   await expect(page.locator("#script")).toBeVisible();
   await expect(page.locator("#video-title")).toHaveValue("Giữ nội dung ý tưởng");
-  await expect(page.locator("[data-field=notes]")).toHaveValue("Ý tưởng đã soạn. Có thêm luận điểm quan trọng.");
+  await expect(page.locator("#script")).toHaveValue("Ý tưởng đã soạn. Có thêm luận điểm quan trọng.");
+  await expect(page.locator("[data-field=notes]")).toHaveValue("");
   await expect(page.locator(".idea-next-stage")).toHaveCount(0);
   await page.locator("#script").fill("Kịch bản triển khai từ ý tưởng.");
   await expect(page.locator("#save-state")).toContainText("Đã lưu");
@@ -87,7 +111,7 @@ test("next-stage button is below the idea textarea and opens the same item in sc
   await page.locator('.mobile-nav [data-view="script"]').click();
   await page.locator(".video-main").first().click();
   await expect(page.locator("#script")).toHaveValue("Kịch bản triển khai từ ý tưởng.");
-  await expect(page.locator("[data-field=notes]")).toHaveValue("Ý tưởng đã soạn. Có thêm luận điểm quan trọng.");
+  await expect(page.locator("[data-field=notes]")).toHaveValue("");
 });
 
 test("moving to script while live dictation is active flushes visible interim text first", async ({ page }) => {
@@ -103,7 +127,7 @@ test("moving to script while live dictation is active flushes visible interim te
   await expect(input).toHaveValue("Đây là nội dung ban đầu. và đoạn đang đọc");
   await page.getByRole("button", { name: "Chuyển sang Kịch bản" }).click();
   await expect(page.locator("#script")).toBeVisible();
-  await expect(page.locator("[data-field=notes]")).toHaveValue("Đây là nội dung ban đầu. và đoạn đang đọc");
+  await expect(page.locator("#script")).toHaveValue("Đây là nội dung ban đầu. và đoạn đang đọc");
 });
 
 test("new idea form microphone sits after description rather than above title", async ({ page }) => {

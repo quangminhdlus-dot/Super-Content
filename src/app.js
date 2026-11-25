@@ -88,7 +88,7 @@ const voice = initVoice({
   },
   onQuickOpen: async (id, stage) => {
     if (stage === "script") {
-      await enqueue(id, (v) => ({ ...transition(v, "script"), script: v.script.trim() ? v.script : v.notes }));
+      await enqueue(id, (v) => transition(v, "script"));
       scheduleSync();
     }
     editing = id;
@@ -118,12 +118,13 @@ const rows = () =>
     .filter(
       (v) =>
         visible(v, view) &&
-        `${v.title} ${v.notes}`
+        `${v.title} ${v.notes} ${view === "script" ? v.script ?? "" : ""}`
           .toLocaleLowerCase("vi")
           .includes(search.toLocaleLowerCase("vi")),
     )
     .sort(
       (a, b) =>
+        (view === "script" ? (b.updated_at || b.created_at).localeCompare(a.updated_at || a.created_at) : 0) ||
         b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id),
     );
 const count = (v) => videos().filter((x) => visible(x, v)).length;
@@ -348,7 +349,7 @@ async function moveCurrentIdeaToScript(button) {
     editing = id;
     render();
     scheduleSync();
-    toast("Đã chuyển sang Kịch bản. Nội dung ý tưởng được giữ nguyên.");
+    toast("Đã chuyển sang Kịch bản.");
   } catch {
     toast("Không thể chuyển công đoạn. Ý tưởng đang viết vẫn được giữ.");
     if (button?.isConnected) button.disabled = false;
