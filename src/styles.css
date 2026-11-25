@@ -842,7 +842,7 @@ dialog::backdrop {
   }
   .mobile-nav {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     position: fixed;
     bottom: 0;
     left: 0;
@@ -2369,4 +2369,21 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   flex-wrap: wrap;
   gap: .5rem;
   margin-block: .5rem 1rem;
+}
+
+.video-library { padding: 1rem; }
+.video-library p { margin: .2rem 0 .65rem; }
+.video-library-row { display: grid; gap: .6rem; padding: .75rem 0; border-top: 1px solid var(--line); }
+.video-library-row small { display: block; overflow-wrap: anywhere; }
+.video-library-row .clip-title { padding: 0; text-align: left; font-weight: 700; overflow-wrap: anywhere; }
+.video-library-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.video-library-actions button { min-height: 44px; padding: .4rem .65rem; }
+.library-player [hidden] { display: none !important; }
+.library-player { max-height: 92dvh; width: min(94vw, 680px); overflow: auto; }
+.library-player-header { display: flex; align-items: flex-start; gap: .6rem; justify-content: space-between; }
+.library-player-header h2 { margin: 0 0 .6rem; font-size: 1rem; overflow-wrap: anywhere; }
+.library-player-header button { flex: none; min-height: 44px; }
+.library-player video { display: block; width: 100%; max-height: 50dvh; background: #000; }
+@media (min-width: 900px) {
+  .video-library-row { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 }

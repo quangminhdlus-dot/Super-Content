@@ -69,30 +69,27 @@ export function createStudioView(readOnly) {
       </label>
       <label>Giữ màn hình sáng <input type="checkbox" data-p="wake"></label>
       <details data-p="advanced"><summary>Micro</summary><label>Thiết bị <select data-p="mic" aria-label="Micro"><option value="">Micro hệ thống</option></select></label></details>
-      <button type="button" data-p="draftsBtn" class="sc-p-secondary">Video chưa lưu</button>
+      <button type="button" data-p="draftsBtn" class="sc-p-secondary">Kho Video</button>
     </section>
     <section class="sc-p-sheet sc-p-review" data-p="review" role="region" aria-label="Xem lại video" hidden>
-      <header><h2>Xem lại video</h2>${iconButton("close", "Đóng xem lại", "reviewClose")}</header>
+      <header><h2 data-p="reviewTitle">Xem lại video</h2>${iconButton("close", "Đóng xem lại", "reviewClose")}</header>
       <video data-p="reviewVideo" controls playsinline preload="metadata"></video>
+      <p data-p="reviewOrientation"></p>
       <p data-p="reviewMessage" role="status"></p>
       <div class="sc-p-review-actions">
-        <button type="button" data-p="save" class="sc-p-primary">Lưu video</button>
+        <button type="button" data-p="save" class="sc-p-primary">Lưu vào iPhone</button>
         <button type="button" data-p="download" class="sc-p-secondary">Tải xuống</button>
         <button type="button" data-p="retake" class="sc-p-secondary">Quay lại</button>
-        <button type="button" data-p="discard" class="sc-p-secondary">Xóa bản nháp</button>
-        <button type="button" data-p="draftsFromReview" class="sc-p-secondary">Video chưa lưu</button>
+        <button type="button" data-p="discard" class="sc-p-secondary">Xóa</button>
+        <button type="button" data-p="draftsFromReview" class="sc-p-secondary">Kho Video</button>
       </div>
       <div class="sc-p-review-actions">
         <button type="button" data-p="confirmSaved" class="sc-p-primary" hidden>Đã lưu trên thiết bị</button>
         <button type="button" data-p="complete" class="sc-p-primary" hidden>Chuyển sang Hoàn thiện</button>
       </div>
-    </section>
-    <section class="sc-p-sheet sc-p-drafts" data-p="drafts" role="region" aria-label="Video chưa lưu" hidden>
-      <header><h2>Video chưa lưu</h2>${iconButton("close", "Đóng video chưa lưu", "draftsClose")}</header>
-      <div data-p="draftList"></div>
     </section>`;
   const el = Object.fromEntries([...overlay.querySelectorAll("[data-p]")].map(node => [node.dataset.p, node]));
   const modeButtons = [...overlay.querySelectorAll("[data-mode]")];
-  const backdrop = [el.settings, el.review, el.drafts];
+  const backdrop = [el.settings, el.review];
   return {overlay, el, backdrop, modeButtons};
 }

@@ -146,11 +146,12 @@ try {
 } catch {
   setScale("medium");
 }
+let closeLibrary;
 function nav() {
   return STAGES.map(
     (s, i) =>
       `<button class="nav-item ${view === s ? "active" : ""}" data-view="${s}" ${view === s ? 'aria-current="page"' : ""}>${icon(s)}<span>${["Ý tưởng", "Kịch bản", "Hoàn thiện", "Đã đăng"][i]}</span><b>${count(s)}</b></button>`,
-  ).join("");
+  ).join("") + `<button class="nav-item ${view === "video" ? "active" : ""}" data-view="video" ${view === "video" ? 'aria-current="page"' : ""}>${icon("filming")}<span>Video</span></button>`;
 }
 function status() {
   const dirty = records.filter((r) => r.dirty).length,
@@ -188,8 +189,20 @@ initResearch({
   },
 });
 function render() {
-  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="accent-highlight">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research" aria-label="Nghiên cứu">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" role="status" hidden><span data-status>${e(status())}</span><button type="button" data-action="sync">Thử đồng bộ lại</button></div><div id="content">${view === "research" ? "" : editing ? editorHTML() : listHTML()}</div></main><button class="quick-record-button" type="button" data-action="quick-record" aria-label="Ghi ý tưởng nhanh" title="Ghi ý tưởng nhanh">${icon("mic")}</button><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
+  closeLibrary?.();
+  closeLibrary = undefined;
+  app.innerHTML = `<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">${icon(publishedIcon())}</span><span>super content<span class="accent-highlight">.</span></span></a><div class="nav-caption">KHÔNG GIAN SẢN XUẤT</div><nav>${nav()}</nav><div class="side-extra"><button data-view="research" class="nav-item ${view === "research" ? "active" : ""}">${icon("search")}<span>Nghiên cứu YouTube</span></button><button data-view="archive" class="nav-item ${view === "archive" ? "active" : ""}">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button data-view="trash" class="nav-item ${view === "trash" ? "active" : ""}">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div><div class="side-bottom"><span class="avatar">${user ? "SC" : "T"}</span><div><strong>${user ? "Tài khoản của bạn" : "Không gian trải nghiệm"}</strong><small>${e(user?.email || "Dữ liệu trên thiết bị này")}</small></div></div></aside><main><header class="topbar"><span class="breadcrumb">Super Content</span><button class="research-shortcut" data-view="research" aria-label="Nghiên cứu">${icon("search")}<span>Nghiên cứu</span></button><details class="utility-dropdown"><summary aria-label="Lưu trữ và Thùng rác" title="Lưu trữ và Thùng rác">${icon("utilities")}</summary><div class="utility-popover"><button type="button" data-view="archive">${icon("archive")}<span>Lưu trữ</span><b>${count("archive")}</b></button><button type="button" data-view="trash">${icon("trash")}<span>Thùng rác</span><b>${count("trash")}</b></button></div></details><button class="icon-button" data-action="settings" aria-label="Cài đặt">${icon("settings")}</button></header><div class="local-notice" role="status" hidden><span data-status>${e(status())}</span><button type="button" data-action="sync">Thử đồng bộ lại</button></div><div id="content">${["research", "video"].includes(view) ? "" : editing ? editorHTML() : listHTML()}</div></main><button class="quick-record-button" type="button" data-action="quick-record" aria-label="Ghi ý tưởng nhanh" title="Ghi ý tưởng nhanh">${icon("mic")}</button><nav class="mobile-nav">${nav()}</nav><div id="selection"></div>`;
   if (view === "research") showResearch(document.querySelector("#content"));
+  else if (view === "video") {
+    const host = document.querySelector("#content");
+    const owner = scope;
+    host.textContent = "Đang mở Kho Video…";
+    void import("./video-library.js").then(({mountVideoLibrary}) => {
+      if (host.isConnected && owner === scope) {
+        closeLibrary = mountVideoLibrary(host, owner, Object.fromEntries(videos().map(item => [item.id, item.title])));
+      }
+    }).catch(() => { if (host.isConnected) host.textContent = "Không mở được Kho Video."; });
+  }
   else if (!editing) renderRows();
   else {
     bindEditor();
@@ -612,6 +625,13 @@ async function openRecorder(mode) {
       { id, owner, title: video.title, text: video.script, mode, canComplete },
       {
         closed: () => { closeRecorder = undefined; },
+        library: () => {
+          if (scope !== owner) return;
+          closeRecorder?.();
+          editing = null;
+          view = "video";
+          render();
+        },
         complete: async () => {
           if (!canComplete || scope !== owner || editing !== id) return;
           await enqueue(id, (current) => {
@@ -994,7 +1014,7 @@ async function sync() {
     syncMessage = "";
     if (records.some((r) => r.dirty && !r.conflict)) scheduleSync();
     // A sync may finish seconds after recording starts. Never redraw its active form.
-    if (!editing && !dialog.open && view !== "research" && !voice.isActive()) render();
+    if (!editing && !dialog.open && !["research", "video"].includes(view) && !voice.isActive()) render();
     else updateStatus();
   } catch (err) {
     syncMessage = "Chưa đồng bộ · Bản trên thiết bị được giữ";
@@ -1010,6 +1030,7 @@ async function changeSession(session) {
   if (newUser?.id === user?.id && generation) return;
   generation++;
   closeRecorder?.();
+  closeLibrary?.();
   voice.cancel();
   resetResearch();
   user = newUser;

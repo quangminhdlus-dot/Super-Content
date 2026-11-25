@@ -1,9 +1,8 @@
 import {createStudioView} from "./prompter-view.js";
 import {createStudioReader} from "./prompter-reader.js";
 import "./prompter.css";
-const runtimeUrl = new URL("prompter/runtime.js", document.baseURI);
-runtimeUrl.searchParams.set("v", __PROMPTER_REVISION__);
-const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", cover: 90, wake: true, mic: "" };
+import {clipFile, clipName, confirmClipRemoval, exportClip, frameLabel, frameOrientation, loadVideoRuntime} from "./video-files.js";
+const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", framingVersion: 1, cover: 90, wake: true, mic: "" };
 const preferenceKey = "super-content:prompter";
 const clamp = (value, min, max) => Math.min(max, Math.max(value, min));
 const readyPhases = new Set(["listening", "recognizing", "processing", "recognized"]);
@@ -11,14 +10,16 @@ const clock = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seco
 
 function preferences() {
   try {
-    const p = { ...defaults, ...JSON.parse(localStorage.getItem(preferenceKey) || "{}") };
+    const stored = JSON.parse(localStorage.getItem(preferenceKey) || "{}");
+    const p = { ...defaults, ...stored };
     return {
       font: Number.isFinite(p.font) ? clamp(p.font, 24, 100) : defaults.font,
       anchor: Number.isFinite(p.anchor) ? clamp(p.anchor, 0, 1) : 0,
       mode: ["voice", "fixed", "manual"].includes(p.mode) ? p.mode : "voice",
       wpm: Number.isFinite(p.wpm) ? clamp(p.wpm, 50, 260) : defaults.wpm,
       countdown: Number.isFinite(p.countdown) ? clamp(Math.round(p.countdown), 1, 10) : 3,
-      framing: p.framing === "landscape" ? "landscape" : "portrait",
+      framing: stored?.framingVersion === 1 && p.framing === "landscape" ? "landscape" : "portrait",
+      framingVersion: 1,
       cover: Number.isFinite(p.cover) ? clamp(Math.round(p.cover), 0, 100) : defaults.cover,
       wake: p.wake === true,
       mic: typeof p.mic === "string" ? p.mic : "",
@@ -45,11 +46,12 @@ export function openPrompter(source, callbacks, initialContext) {
   const signals = new AbortController();
   const listen = (node, event, handler) => node.addEventListener(event, handler, { signal: signals.signal });
   let core, voice, capture, capturePending, captureEvents, session, wakeLock;
+  let cameraFrame = "";
   let phase = "idle", voicePhase = "paused", captureError = "", message = "", facing = "user";
   let destroyed = false, reading = true, semanticReady = false;
   let lastTick = performance.now(), startTime = 0, deadline = 0, startTimeout = 0, frame = 0;
   let request = 0, stopping, meter, meterData, meterSource, meterTime = 0;
-  let review, reviewing = 0, reviewBusy = false, confirmation = false, draftCount = 0;
+  let review, reviewing = 0, reviewBusy = false, confirmation = false;
 
   const reader = createStudioReader({overlay, el, prefs, source, listen, active, seek:position => voice?.seek(position), savePreferences});
 
@@ -100,12 +102,13 @@ export function openPrompter(source, callbacks, initialContext) {
     el.record.dataset.state = readOnly ? (reading ? "pause" : "play") : recording ? "stop" : waiting ? "cancel" : "ready";
     el.record.setAttribute("aria-label", readOnly ? (reading ? "Tạm dừng nhắc chữ" : "Bắt đầu nhắc chữ") :
       recording ? "Dừng quay" : waiting ? "Hủy bắt đầu quay" : "Bắt đầu quay");
-    el.record.disabled = !core || working;
+    el.record.disabled = !core || working || (!readOnly && phase === "idle" && orientationMismatch());
     el.back.disabled = !!session || working;
     el.flip.disabled = !core || !!capturePending || phase !== "idle";
     el.flip.setAttribute("aria-pressed", String(facing === "environment"));
     el.flip.title = facing === "user" ? "Camera trước" : "Camera sau";
     el.framing.disabled = el.mic.disabled = !!capturePending || phase !== "idle";
+    el.draftsBtn.disabled = phase !== "idle" || !!session;
     el.previewBtn.disabled = !camera || camera.readyState !== "live";
     el.count.hidden = phase !== "countdown";
     el.retry.hidden = !captureError && voicePhase !== "error";
@@ -114,6 +117,10 @@ export function openPrompter(source, callbacks, initialContext) {
     if (!status && capturePending) status = readOnly ? "Đang mở micro…" : "Đang mở camera và micro…";
     if (!status && prefs.mode === "voice" && !readyPhases.has(voicePhase) && voicePhase !== "paused") {
       status = voicePhase === "error" ? "Nhắc chữ giọng nói chưa sẵn sàng." : "Đang chuẩn bị giọng nói…";
+    }
+    if (!status && !readOnly && orientationMismatch() && phase !== "recording") {
+      const direction = prefs.framing === "portrait" ? "dọc 9:16" : "ngang 16:9";
+      status = "Xoay máy để khớp hướng " + direction + " hoặc đổi hướng quay. Camera đang hiển thị " + frameLabel(el.camera.videoWidth, el.camera.videoHeight) + ".";
     }
     if (!status && phase === "waiting" && !mediaReady()) status = "Đang chờ camera và micro…";
     if (!status && phase === "starting") status = "Đang bắt đầu quay…";
@@ -181,6 +188,7 @@ export function openPrompter(source, callbacks, initialContext) {
     el.signal.value = 0;
     el.camera.pause();
     el.camera.srcObject = null;
+    cameraFrame = "";
     if (capture) core.closeCapture(capture);
     capture = undefined;
   }
@@ -221,6 +229,7 @@ export function openPrompter(source, callbacks, initialContext) {
     if (!current) releaseCapture();
     captureError = "";
     const chosen = {facing, framing:prefs.framing, mic:prefs.mic};
+    cameraFrame = "";
     const unlockedContext = initialContext;
     initialContext = undefined;
     const open = async () => {
@@ -265,6 +274,8 @@ export function openPrompter(source, callbacks, initialContext) {
     return capturePending;
   }
 
+  function orientationMismatch() { return !!cameraFrame && cameraFrame !== prefs.framing; }
+
   function mediaReady() {
     const tracks = capture?.stream.getTracks();
     return tracks?.length >= 2 && tracks.every(track => track.readyState === "live" && !track.muted);
@@ -272,6 +283,8 @@ export function openPrompter(source, callbacks, initialContext) {
 
   function maybeCountdown() {
     if (destroyed || phase !== "waiting" || !mediaReady() || capturePending) return;
+    if (orientationMismatch()) { usePhase("idle"); return; }
+    if (!cameraFrame) return;
     if (prefs.mode === "voice" && !readyPhases.has(voicePhase)) return;
     el.count.textContent = prefs.countdown;
     deadline = performance.now() + prefs.countdown * 1000;
@@ -295,6 +308,7 @@ export function openPrompter(source, callbacks, initialContext) {
 
   async function startRecording() {
     if (phase !== "countdown") return;
+    if (!cameraFrame || orientationMismatch()) { usePhase("idle"); return; }
     if (!mediaReady()) {
       captureError = "Camera hoặc micro chưa sẵn sàng. Nhấn Thử lại.";
       usePhase("idle");
@@ -304,8 +318,8 @@ export function openPrompter(source, callbacks, initialContext) {
     const currentCapture = capture, token = ++request;
     try {
       const recording = await core.VideoSession.create(currentCapture.stream, () => {}, reason => { void stopRecording(reason); },
-        {owner:source.owner, contentId:source.id});
-      if (destroyed || token !== request || capture !== currentCapture) return;
+        {owner:source.owner, contentId:source.id, title:source.title, framing:prefs.framing});
+      if (destroyed || token !== request || capture !== currentCapture) { void recording.stop(); return; }
       session = recording;
       startTimeout = window.setTimeout(() => {
         if (phase === "starting") void stopRecording("Chưa khởi động được bộ ghi. Hãy thử lại.");
@@ -345,7 +359,6 @@ export function openPrompter(source, callbacks, initialContext) {
         message = reason || "Chưa có dữ liệu video. Hãy thử lại.";
         syncControls();
       }
-      void refreshDraftCount();
     }).catch(() => {
       if (!destroyed) {
         message = "Chưa hoàn tất video. Bản nháp có thể mở lại.";
@@ -367,6 +380,7 @@ export function openPrompter(source, callbacks, initialContext) {
     review = undefined;
     el.reviewVideo.pause();
     el.reviewVideo.removeAttribute("src");
+    el.reviewOrientation.textContent = "";
     el.reviewVideo.load();
     if (disposeReview.url) URL.revokeObjectURL(disposeReview.url);
     disposeReview.url = undefined;
@@ -378,15 +392,16 @@ export function openPrompter(source, callbacks, initialContext) {
     confirmation = false;
     reviewBusy = true;
     showPanel(el.review);
+    el.reviewTitle.textContent = clipName(meta);
     el.reviewMessage.textContent = "Đang mở video…";
     updateReview();
     try {
-      const file = await core.DraftStore.file(meta, "Super-Content");
+      const file = await clipFile(core, meta);
       if (destroyed || token !== reviewing) return;
       if (!file.size) throw Error("Bản nháp chưa có dữ liệu.");
       disposeReview.url = URL.createObjectURL(file);
       el.reviewVideo.src = disposeReview.url;
-      review = {meta, file, saved:false};
+      review = {meta, file};
       el.reviewMessage.textContent = reason || "";
     } catch (error) {
       if (token === reviewing) el.reviewMessage.textContent = error.message || "Chưa mở được bản nháp.";
@@ -401,9 +416,8 @@ export function openPrompter(source, callbacks, initialContext) {
   function updateReview() {
     for (const button of [el.save, el.download, el.discard, el.confirmSaved, el.complete]) button.disabled = !review || reviewBusy;
     for (const button of [el.reviewClose, el.retake, el.draftsFromReview]) button.disabled = reviewBusy;
-    el.discard.hidden = !!review?.saved;
-    el.confirmSaved.hidden = !confirmation || !!review?.saved;
-    el.complete.hidden = !source.canComplete || !review?.saved;
+    el.confirmSaved.hidden = !confirmation || !!review?.meta.savedAt;
+    el.complete.hidden = !source.canComplete || !review?.meta.complete;
   }
 
   async function exportReview(download) {
@@ -413,72 +427,38 @@ export function openPrompter(source, callbacks, initialContext) {
     confirmation = false;
     updateReview();
     try {
-      if (!download && navigator.canShare?.({files:[file]}) && navigator.share) await core.shareVideo(file, "Super Content");
-      else core.downloadVideo(file);
+      await exportClip(core, file, download);
       confirmation = true;
       el.reviewMessage.textContent = "Kiểm tra video trong Ảnh hoặc Tệp, rồi xác nhận đã lưu.";
     } catch (error) {
-      el.reviewMessage.textContent = error.name === "AbortError" ? "Đã hủy. Bản nháp vẫn còn." : "Chưa lưu được. Bản nháp vẫn còn.";
+      el.reviewMessage.textContent = error.name === "AbortError" ? "Đã hủy. Video vẫn nằm trong Kho Video." : "Chưa lưu được. Video vẫn nằm trong Kho Video.";
     } finally {
       reviewBusy = false;
       updateReview();
     }
   }
 
-  async function removeReview(saved) {
-    if (!review || reviewBusy || (saved && !confirmation)) return;
-    if (!saved && !confirm("Xóa bản nháp video này khỏi thiết bị?")) return;
+  async function updateSavedVideo(saved) {
+    if (!review || reviewBusy || (saved ? !confirmation : !confirmClipRemoval(review.meta))) return;
     reviewBusy = true;
+    const {meta} = review;
     updateReview();
     try {
-      await core.DraftStore.remove(review.meta.id);
-      void refreshDraftCount();
       if (saved) {
-        review.saved = true;
+        meta.savedAt = await core.DraftStore.markSaved(meta.id);
         confirmation = false;
-        el.reviewMessage.textContent = "Đã xác nhận lưu video.";
+        el.reviewMessage.textContent = "Đã xác nhận lưu. Video vẫn nằm trong Kho Video.";
       } else {
+        await core.DraftStore.remove(meta.id, meta.owner, meta.contentId);
         disposeReview();
         showPanel(null);
         void prepare();
       }
-    } catch {
-      el.reviewMessage.textContent = "Chưa xóa được bản nháp. Hãy thử lại.";
+    } catch (error) {
+      el.reviewMessage.textContent = error.message || "Chưa cập nhật được video. Hãy thử lại.";
     } finally {
       reviewBusy = false;
       updateReview();
-    }
-  }
-
-  async function ownedDrafts() {
-    return (await core.DraftStore.list()).filter(meta => meta.bytes > 0 && meta.owner === source.owner && meta.contentId === source.id);
-  }
-
-  async function refreshDraftCount() {
-    if (readOnly || !core) return;
-    try { draftCount = (await ownedDrafts()).length; }
-    catch { draftCount = 0; }
-    el.draftsBtn.textContent = draftCount ? `Video chưa lưu (${draftCount})` : "Video chưa lưu";
-  }
-
-  async function showDrafts() {
-    disposeReview();
-    showPanel(el.drafts);
-    el.draftList.textContent = "Đang mở bản nháp…";
-    try {
-      const drafts = await ownedDrafts();
-      el.draftList.replaceChildren();
-      if (!drafts.length) el.draftList.textContent = "Chưa có video nháp.";
-      for (const meta of drafts) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "sc-p-secondary";
-        button.textContent = new Date(meta.created).toLocaleString("vi-VN") + " · " + clock(meta.seconds) + (meta.complete ? "" : " · Gián đoạn");
-        button.addEventListener("click", () => void showReview(meta, meta.reason), {once:true});
-        el.draftList.append(button);
-      }
-    } catch {
-      el.draftList.textContent = "Không mở được bộ nhớ video trên thiết bị.";
     }
   }
 
@@ -557,8 +537,21 @@ export function openPrompter(source, callbacks, initialContext) {
     }
     syncControls();
   });
-  listen(el.camera, "loadedmetadata", () => {
-    if (el.camera.videoWidth && el.camera.videoHeight) el.previewArea.style.setProperty("--sc-p-ratio", el.camera.videoWidth / el.camera.videoHeight);
+  function updateCameraFrame() {
+    const {videoWidth, videoHeight} = el.camera;
+    if (!capture || !videoWidth || !videoHeight) return;
+    cameraFrame = frameOrientation(videoWidth, videoHeight);
+    el.previewArea.style.setProperty("--sc-p-ratio", videoWidth / videoHeight);
+    maybeCountdown();
+    syncControls();
+  }
+  listen(el.camera, "loadedmetadata", updateCameraFrame);
+  listen(el.camera, "resize", updateCameraFrame);
+  listen(el.reviewVideo, "loadedmetadata", () => {
+    const {videoWidth, videoHeight} = el.reviewVideo;
+    if (!review || !videoWidth || !videoHeight) return;
+    const mismatch = review.meta.framing && review.meta.framing !== frameOrientation(videoWidth, videoHeight);
+    el.reviewOrientation.textContent = frameLabel(videoWidth, videoHeight) + (mismatch ? " · Tệp do trình duyệt tạo khác tỷ lệ đã chọn." : "");
   });
   listen(el.previewBtn, "click", () => showPreview(true));
   listen(el.previewClose, "click", () => showPreview(false));
@@ -584,13 +577,12 @@ export function openPrompter(source, callbacks, initialContext) {
     el.countdown.value = prefs.countdown;
     savePreferences();
   });
-  listen(el.draftsBtn, "click", () => void showDrafts());
-  listen(el.draftsFromReview, "click", () => void showDrafts());
-  listen(el.draftsClose, "click", () => { showPanel(null); void prepare(); });
+  listen(el.draftsBtn, "click", () => { if (!session && phase === "idle") callbacks.library(); });
+  listen(el.draftsFromReview, "click", callbacks.library);
   listen(el.save, "click", () => void exportReview(false));
   listen(el.download, "click", () => void exportReview(true));
-  listen(el.confirmSaved, "click", () => void removeReview(true));
-  listen(el.discard, "click", () => void removeReview(false));
+  listen(el.confirmSaved, "click", () => void updateSavedVideo(true));
+  listen(el.discard, "click", () => void updateSavedVideo(false));
   const retake = () => {
     disposeReview();
     showPanel(null);
@@ -614,7 +606,6 @@ export function openPrompter(source, callbacks, initialContext) {
     if (el.preview.hidden === false) showPreview(false);
     else if (el.settings.hidden === false) showPanel(null);
     else if (el.review.hidden === false && !reviewBusy) retake();
-    else if (el.drafts.hidden === false) { showPanel(null); void prepare(); }
     else if (!session && phase !== "starting") close();
   });
   listen(document, "visibilitychange", () => {
@@ -633,7 +624,7 @@ export function openPrompter(source, callbacks, initialContext) {
   syncControls();
   frame = requestAnimationFrame(tick);
   void updateWake();
-  import(/* @vite-ignore */ runtimeUrl.href).then(runtime => {
+  loadVideoRuntime().then(runtime => {
     if (destroyed) return;
     core = runtime;
     const segments = reader.load(core);
@@ -646,7 +637,6 @@ export function openPrompter(source, callbacks, initialContext) {
       voiceActivity:reader.activity,
     });
     void prepare();
-    void refreshDraftCount();
     syncControls();
   }).catch(() => {
     if (!destroyed) {
