@@ -67,3 +67,11 @@ test("publication date is set on publish, never on idea recording, and refreshed
   const republished = transition({ ...back, published_at: "2020-01-01T00:00:00.000Z" }, "published");
   assert.notEqual(republished.published_at, "2020-01-01T00:00:00.000Z");
 });
+
+test("legacy filming rows appear in scripts with their original stage", () => {
+  const video = { ...createVideo("Kịch bản đã lưu"), stage: "filming" };
+  assert.equal(visible(video, "script"), true);
+  assert.equal(visible(video, "filming"), false);
+  assert.equal(video.stage, "filming");
+  assert.equal(transition(video, "editing").id, video.id);
+});

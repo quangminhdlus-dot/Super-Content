@@ -5,6 +5,7 @@ import "@fontsource/be-vietnam-pro/latin-700.css";
 import "./styles.css";
 import {
   STAGES,
+  displayStage,
   LABELS,
   createVideo,
   parseTitles,
@@ -148,7 +149,7 @@ try {
 function nav() {
   return STAGES.map(
     (s, i) =>
-      `<button class="nav-item ${view === s ? "active" : ""}" data-view="${s}" ${view === s ? 'aria-current="page"' : ""}>${icon(s)}<span>${["Ý tưởng", "Kịch bản", "Chờ quay", "Hoàn thiện", "Đã đăng"][i]}</span><b>${count(s)}</b></button>`,
+      `<button class="nav-item ${view === s ? "active" : ""}" data-view="${s}" ${view === s ? 'aria-current="page"' : ""}>${icon(s)}<span>${["Ý tưởng", "Kịch bản", "Hoàn thiện", "Đã đăng"][i]}</span><b>${count(s)}</b></button>`,
   ).join("");
 }
 function status() {
@@ -213,7 +214,7 @@ function renderRows() {
     ? list
         .map(
           (v) =>
-            `<article class="video-row ${selected.has(v.id) ? "selected" : ""}"><label class="row-selector"><input type="checkbox" class="row-check" data-id="${v.id}" aria-label="Chọn ${e(v.title)}" ${selected.has(v.id) ? "checked" : ""}></label><button class="video-main" data-open="${v.id}"><strong>${e(v.title || "Ý tưởng chưa có tiêu đề")}</strong><span>${e((v.notes || v.script)?.slice(0, 90) || "Chưa có nội dung")}</span></button><span class="tag ${v.script ? "ready" : ""}">${view === "script" ? (v.script ? "Đang viết" : "Chưa viết") : e(LABELS[STAGES.indexOf(v.stage)])}</span></article>`,
+            `<article class="video-row ${selected.has(v.id) ? "selected" : ""}"><label class="row-selector"><input type="checkbox" class="row-check" data-id="${v.id}" aria-label="Chọn ${e(v.title)}" ${selected.has(v.id) ? "checked" : ""}></label><button class="video-main" data-open="${v.id}"><strong>${e(v.title || "Ý tưởng chưa có tiêu đề")}</strong><span>${e((v.notes || v.script)?.slice(0, 90) || "Chưa có nội dung")}</span></button><span class="tag ${v.script ? "ready" : ""}">${view === "script" ? (v.script ? "Đang viết" : "Chưa viết") : e(LABELS[STAGES.indexOf(displayStage(v.stage))])}</span></article>`,
         )
         .join("")
     : `<div class="empty"><span class="empty-icon">${icon(view)}</span><h2>${search ? "Không tìm thấy nội dung" : "Chưa có video ở đây"}</h2><p>${search ? "Thử tìm bằng từ khóa khác." : view === "ideas" ? "Ghi lại nội dung ý tưởng; AI có thể gợi ý tiêu đề sau." : "Video sẽ xuất hiện khi bạn chuyển đến công đoạn này."}</p>${view === "ideas" && !search ? '<button class="primary" data-action="add">+ Thêm ý tưởng đầu tiên</button>' : ""}</div>`;
@@ -231,7 +232,7 @@ function renderSelection() {
   if (quickButton) quickButton.hidden = view !== "ideas" || !!editing || n > 0;
   bar.innerHTML =
     n && !editing && view !== "research"
-      ? `<div class="selection-bar"><span><b>${n}</b> đã chọn</span><button data-action="deselect">Bỏ chọn</button><div class="selection-actions">${i > 0 ? `<button data-move="${STAGES[i - 1]}" aria-label="Về ${LABELS[i - 1]}">${icon("back")} ${LABELS[i - 1]}</button>` : ""}${i >= 0 && i < 4 ? `<button class="primary" data-move="${STAGES[i + 1]}">${i === 2 ? "Đã quay xong → Hoàn thiện" : `Chuyển sang ${LABELS[i + 1]}`} ${icon("arrow")}</button>` : ""}${view === "archive" || view === "trash" ? '<button class="primary" data-action="restore">Khôi phục</button>' : `<button data-action="archive">${icon("archive")} Lưu trữ</button>`}${view === "trash" ? '<button class="danger" data-action="purge">Xóa vĩnh viễn</button>' : `<button class="danger" data-action="delete">${icon("trash")} Xóa</button>`}</div></div>`
+      ? `<div class="selection-bar"><span><b>${n}</b> đã chọn</span><button data-action="deselect">Bỏ chọn</button><div class="selection-actions">${i > 0 ? `<button data-move="${STAGES[i - 1]}" aria-label="Về ${LABELS[i - 1]}">${icon("back")} ${LABELS[i - 1]}</button>` : ""}${i >= 0 && i < STAGES.length - 1 ? `<button class="primary" data-move="${STAGES[i + 1]}">${`Chuyển sang ${LABELS[i + 1]}`} ${icon("arrow")}</button>` : ""}${view === "archive" || view === "trash" ? '<button class="primary" data-action="restore">Khôi phục</button>' : `<button data-action="archive">${icon("archive")} Lưu trữ</button>`}${view === "trash" ? '<button class="danger" data-action="purge">Xóa vĩnh viễn</button>' : `<button class="danger" data-action="delete">${icon("trash")} Xóa</button>`}</div></div>`
       : "";
 }
 async function reload() {
@@ -341,12 +342,6 @@ async function moveCurrentIdeaToScript(button) {
   }
 }
 async function move(stage) {
-  if (
-    stage === "filming" &&
-    videos().some((v) => selected.has(v.id) && !v.script.trim()) &&
-    !confirm("Có video chưa có kịch bản. Vẫn chuyển sang Chờ quay?")
-  )
-    return;
   const ids = [...selected];
   busy();
   try {
@@ -578,6 +573,75 @@ async function deleteReference(index) {
   await updateReferences(removeReferenceLink(current.source_url, index));
 }
 
+let closeRecorder;
+let openingRecorder = false;
+async function openRecorder(mode) {
+  if (openingRecorder || closeRecorder) return;
+  openingRecorder = true;
+  const owner = scope, id = editing;
+  try {
+    await voice.stopInline();
+    await writeChain;
+    if (scope !== owner || editing !== id) return;
+    const video = videos().find((item) => item.id === id);
+    const script = document.querySelector("#script");
+    const title = document.querySelector("#video-title");
+    if (!video || !script || script.value !== video.script.replace(/\r\n?/g, "\n") ||
+        title?.value !== video.title) {
+      toast("Chưa xác nhận được bản lưu mới nhất. Kiểm tra kịch bản rồi thử lại.");
+      return;
+    }
+    if (!video.script.trim()) {
+      toast("Hãy viết kịch bản trước khi mở Prompter.");
+      return;
+    }
+    const { openPrompter } = await import("./prompter.js");
+    if (scope !== owner || editing !== id || videos().find((item) => item.id === id) !== video) {
+      toast("Kịch bản vừa thay đổi. Hãy mở Prompter lại.");
+      return;
+    }
+    const canComplete = displayStage(video.stage) === "script";
+    closeRecorder = openPrompter(
+      { id, owner, title: video.title, text: video.script, mode, canComplete },
+      {
+        closed: () => { closeRecorder = undefined; },
+        complete: async () => {
+          if (!canComplete || scope !== owner || editing !== id) return;
+          await enqueue(id, (current) => {
+            if (!current || current.deleted_at || current.archived_at || current.purged_at ||
+                displayStage(current.stage) !== "script") throw new Error("Công đoạn đã đổi");
+            return transition(current, "editing");
+          });
+          if (scope !== owner || editing !== id) return;
+          view = "editing";
+          render();
+          scheduleSync();
+          closeRecorder?.();
+          toast("Đã chuyển sang Hoàn thiện.");
+        },
+        error: () => toast("Chưa mở được Prompter. Hãy thử lại."),
+      },
+    );
+  } catch {
+    toast("Không thể mở Prompter. Hãy kiểm tra bản lưu rồi thử lại.");
+  } finally {
+    openingRecorder = false;
+  }
+}
+function formatScriptBold() {
+  const input = document.querySelector("#script");
+  if (!input || input.selectionStart === input.selectionEnd) {
+    toast("Hãy chọn đoạn muốn in đậm.");
+    return;
+  }
+  const { selectionStart: start, selectionEnd: end, value } = input;
+  const text = value.slice(start, end);
+  const marked = value.slice(start - 2, start) === "**" && value.slice(end, end + 2) === "**";
+  input.setRangeText(marked ? text : "**" + text + "**", marked ? start - 2 : start, marked ? end + 2 : end);
+  input.focus();
+  input.setSelectionRange(marked ? start - 2 : start + 2, marked ? end - 2 : end + 2);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 function editorHTML() {
   const v = videos().find((x) => x.id === editing);
   if (!v) {
@@ -588,7 +652,8 @@ function editorHTML() {
   const primaryField = isIdea ? "notes" : "script";
   const primaryId = isIdea ? "idea-content" : "script";
   const primaryText = v[primaryField] || "";
-  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(v.stage)])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2><span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div><div class="${isIdea ? "idea-writing-area" : "script-writing-area"}"><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Chạm micro góc dưới để đọc thành chữ…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">${e(primaryText)}</textarea>${isIdea ? `<div class="idea-next-row"><button class="primary idea-next-stage" type="button" data-action="idea-to-script">Chuyển sang Kịch bản ${icon("arrow")}</button></div>` : ""}</div></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
+  return `<section class="editor"><div class="editor-top"><button data-action="back">${icon("back")} Danh sách</button><span id="save-state" role="status">Đã lưu trên thiết bị</span></div><div class="editor-heading"><span class="eyebrow">${e(LABELS[STAGES.indexOf(displayStage(v.stage))])}</span><label class="sr-only" for="video-title">Tiêu đề video</label><input class="title-input" id="video-title" data-field="title" value="${e(v.title)}" placeholder="Tiêu đề (có thể để trống để AI gợi ý)">${isIdea ? '<div class="title-ai-tools"><button type="button" data-action="suggest-title">Nghiên cứu & gợi ý 3 tiêu đề</button><small id="title-suggestion-status" role="status"></small></div><div id="title-suggestions" class="title-suggestions" aria-live="polite"></div>' : ""}${isIdea && !primaryText.trim() && v.title.trim().length > 110 ? '<button type="button" data-action="move-title-to-content">Chuyển phần ghi nhầm ở tiêu đề xuống nội dung</button>' : ""}</div><div class="editor-grid"><div class="script-panel panel"><div class="script-toolbar"><h2>${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}</h2>${isIdea ? "" : '<button type="button" data-action="script-bold" aria-label="In đậm đoạn đã chọn"><strong>B</strong></button>'}<span id="word-count">${primaryText.trim() ? primaryText.trim().split(/\s+/).length : 0} từ</span></div>${isIdea ? "" : '<div class="prompter-actions"><button class="primary" type="button" data-action="record-prompter">Quay với Prompter</button><button type="button" data-action="read-prompter">Nhắc chữ không camera</button></div>'}<div class="${isIdea ? "idea-writing-area" : "script-writing-area"}"><textarea id="${primaryId}" data-field="${primaryField}" placeholder="${isIdea ? "Nói hoặc viết toàn bộ ý tưởng ở đây. Chạm micro góc dưới để đọc thành chữ…" : "Bắt đầu câu chuyện của bạn…"}" aria-label="${isIdea ? "Nội dung ý tưởng" : "Nội dung kịch bản"}">
+${e(primaryText)}</textarea>${isIdea ? `<div class="idea-next-row"><button class="primary idea-next-stage" type="button" data-action="idea-to-script">Chuyển sang Kịch bản ${icon("arrow")}</button></div>` : ""}</div></div><aside class="details panel"><h2>Thông tin</h2>${referenceEditor(v.source_url)}${isIdea ? (v.script?.trim() ? field("Kịch bản đã soạn", "script", v.script, "textarea") : "") : field("Ghi chú ý tưởng", "notes", v.notes, "textarea")}<details class="details-expand" ${v.postproduction_notes?.trim() ? "open" : ""}><summary>Ghi chú hậu kỳ</summary>${field("", "postproduction_notes", v.postproduction_notes, "textarea")}</details><small class="details-created">Ngày tạo: ${date(v.created_at)}</small></aside></div></section>`;
 }
 function field(label, key, value, type) {
   return `<label class="field">${label}${type === "textarea" ? `<textarea data-field="${key}" rows="3">${e(value)}</textarea>` : `<input data-field="${key}" type="${type}" value="${e(value)}" placeholder="${type === "url" ? "https://…" : ""}">`}</label>`;
@@ -935,6 +1000,7 @@ async function changeSession(session) {
   const newUser = session?.user || null;
   if (newUser?.id === user?.id && generation) return;
   generation++;
+  closeRecorder?.();
   voice.cancel();
   resetResearch();
   user = newUser;
@@ -1063,6 +1129,15 @@ document.addEventListener("click", async (ev) => {
           break;
         case "move-title-to-content":
           moveAccidentalTitleToContent();
+          break;
+        case "script-bold":
+          formatScriptBold();
+          break;
+        case "record-prompter":
+          await openRecorder("record");
+          break;
+        case "read-prompter":
+          await openRecorder("read");
           break;
         case "idea-to-script":
           await moveCurrentIdeaToScript(b);

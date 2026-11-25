@@ -1,0 +1,32 @@
+{
+  "root": "https://huggingface.co/csukuangfj/sherpa-onnx-zipformer-vi-int8-2025-04-20/resolve/b2745a435379992ad3f299635468db0c34918e1e/",
+  "files": [
+    {
+      "name": "decoder-epoch-12-avg-8.onnx",
+      "path": "decoder.onnx",
+      "bytes": 5165084,
+      "sha256": "d1d27cca84c824a8acf5ce6edf0f2c0880cfe295d2e69b95134de1707e1d9998"
+    },
+    {
+      "name": "encoder-epoch-12-avg-8.int8.onnx",
+      "path": "encoder.int8.onnx",
+      "bytes": 70876129,
+      "sha256": "b3abdef7a660fea7faf5e076b3c7613b0fc98406707103784d018189bb522124"
+    },
+    {
+      "name": "joiner-epoch-12-avg-8.int8.onnx",
+      "path": "joiner.int8.onnx",
+      "bytes": 1033417,
+      "sha256": "38ec49e1c18e4feb0cad4de13e25c83a866cf56f4a66f22e8ff579d591a69a46"
+    },
+    {
+      "name": "tokens.txt",
+      "path": "tokens.txt",
+      "bytes": 25847,
+      "sha256": "f536d03c2e95ebd2930cf0abec88e823bd17d3c1933da7ae6a82db3b80605e15"
+    }
+  ],
+  "cache": "super-prompter-offline-vi68-b2745a43",
+  "license": "Apache-2.0",
+  "source": "https://huggingface.co/zzasdf/viet_iter3_pseudo_label"
+}

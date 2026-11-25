@@ -1,0 +1,6 @@
+Sherpa-ONNX runtime 2.0.3, Apache License 2.0
+Source: https://github.com/k2-fsa/sherpa-onnx
+Package: https://pub.dev/api/archives/sherpa_onnx_web-2.0.3.tar.gz
+Copied unmodified browser runtime JS, ASR API JS and WASM from the official web package.
+Model weights are downloaded separately and retain their upstream license:
+https://huggingface.co/hynt/Zipformer-30M-RNNT-6000h

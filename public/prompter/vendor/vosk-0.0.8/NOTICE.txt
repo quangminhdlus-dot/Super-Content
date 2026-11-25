@@ -1,0 +1,5 @@
+Vosk-browser 0.0.8, declared Apache-2.0. Source: https://github.com/lichess-org/vosk-browser
+Unmodified dist/vosk.js from https://registry.npmjs.org/vosk-browser/-/vosk-browser-0.0.8.tgz
+Includes the upstream embedded runtime/third-party notices; retain these notices when redistributing.
+Vosk API: https://github.com/alphacep/vosk-api (Apache-2.0).
+Vietnamese model weights are fetched separately; official model list: https://alphacephei.com/vosk/models (Apache-2.0 for small-vn-0.4).

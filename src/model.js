@@ -1,8 +1,7 @@
-export const STAGES = ["ideas", "script", "filming", "editing", "published"];
+export const STAGES = ["ideas", "script", "editing", "published"];
 export const LABELS = [
   "Kho ý tưởng",
   "Lên kịch bản",
-  "Chờ quay",
   "Hoàn thiện",
   "Đã xuất bản",
 ];
@@ -55,10 +54,13 @@ export function transition(video, stage) {
         : video.published_at,
   };
 }
+export function displayStage(stage) {
+  return stage === "filming" ? "script" : stage;
+}
 export function visible(v, view) {
   if (v.purged_at) return false;
   if (view === "trash") return !!v.deleted_at;
   if (v.deleted_at) return false;
   if (view === "archive") return !!v.archived_at;
-  return !v.archived_at && v.stage === view;
+  return !v.archived_at && displayStage(v.stage) === view;
 }

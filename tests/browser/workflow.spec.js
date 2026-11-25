@@ -92,8 +92,7 @@ test("floating microphone is directly above the mobile navigation and needs logi
   await expect(fab).toBeHidden();
   await stage(page, "Ý tưởng").click();
   await expect(fab).toBeVisible();
-  await stage(page, "Chờ quay").click();
-  await expect(fab).toBeHidden();
+  await expect(stage(page, "Chờ quay")).toHaveCount(0);
   await stage(page, "Hoàn thiện").click();
   await expect(fab).toBeHidden();
   await stage(page, "Đã đăng").click();
@@ -185,7 +184,6 @@ test("production stages show only heading; mobile viewport disallows page zoom",
   const stageTitles = [
     ["Ý tưởng", "Kho ý tưởng"],
     ["Kịch bản", "Lên kịch bản"],
-    ["Chờ quay", "Chờ quay"],
     ["Hoàn thiện", "Hoàn thiện"],
     ["Đã đăng", "Đã xuất bản"],
   ];
@@ -258,11 +256,7 @@ test("full 20 → 7 workflow, stable IDs, script, offline persistence, archive a
   });
   await page.getByRole("button", { name: "Danh sách", exact: true }).click();
   await selectAll(page);
-  await page.getByRole("button", { name: "Chuyển sang Chờ quay" }).click();
-  await stage(page, "Chờ quay").click();
-  await expect(page.locator(".video-row")).toHaveCount(7);
-  await selectAll(page);
-  await page.getByRole("button", { name: "Đã quay xong → Hoàn thiện" }).click();
+  await page.getByRole("button", { name: "Chuyển sang Hoàn thiện" }).click();
   await stage(page, "Hoàn thiện").click();
   await selectAll(page);
   await page.getByRole("button", { name: "Chuyển sang Đã xuất bản" }).click();
