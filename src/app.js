@@ -579,7 +579,14 @@ async function openRecorder(mode) {
   if (openingRecorder || closeRecorder) return;
   openingRecorder = true;
   const owner = scope, id = editing;
+  let audioContext;
   try {
+    if (globalThis.AudioContext) {
+      try {
+        audioContext = new AudioContext({latencyHint:"interactive"});
+        void audioContext.resume().catch(() => {});
+      } catch {}
+    }
     await voice.stopInline();
     await writeChain;
     if (scope !== owner || editing !== id) return;
@@ -619,12 +626,14 @@ async function openRecorder(mode) {
           closeRecorder?.();
           toast("Đã chuyển sang Hoàn thiện.");
         },
-        error: () => toast("Chưa mở được Prompter. Hãy thử lại."),
       },
+      audioContext,
     );
+    audioContext = undefined;
   } catch {
     toast("Không thể mở Prompter. Hãy kiểm tra bản lưu rồi thử lại.");
   } finally {
+    void audioContext?.close().catch(() => {});
     openingRecorder = false;
   }
 }

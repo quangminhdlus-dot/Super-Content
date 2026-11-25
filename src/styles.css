@@ -2370,24 +2370,3 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   gap: .5rem;
   margin-block: .5rem 1rem;
 }
-.prompter-overlay {
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  width: 100vw;
-  height: 100dvh;
-  max-width: none;
-  max-height: none;
-  background: #11151d;
-}
-.prompter-overlay[open] {
-  display: grid;
-  place-items: center;
-}
-.prompter-overlay iframe {
-  border: 0;
-  width: 100%;
-  height: 100%;
-}
