@@ -8,6 +8,8 @@ Camera trước được hiển thị bằng CSS `scaleX(-1)`, nhưng `VideoSess
 
 `src/recording-video.js` tạo riêng luồng hình được lật một lần, theo đúng lớp `mirrored` của phần tử xem trước. Canvas dùng kích thước khung camera đã giải mã, không resize/crop; mỗi khung camera được vẽ bằng phép biến đổi nguyên pixel và yêu cầu capture ngay bằng `requestFrame()`. Camera sau truyền nguyên luồng gốc.
 
+Trước khi tạo encoder, một phần tử video tạm chỉ nhận track hình xác nhận khung sinh ra đã sẵn sàng, rồi được giải phóng. Bước này tránh mở encoder âm thanh khi GPU vẫn đang chuẩn bị khung hình đầu tiên; không nối thêm đường xử lý âm thanh.
+
 Bộ ghi, lựa chọn codec, bitrate, AudioContext và bộ xử lý stereo hiện hành trong `public/prompter/runtime.js` không thay đổi. Track micro gốc được truyền cùng luồng hình mới. Luồng hình tạm được giải phóng sau khi encoder hoàn tất, kể cả khi dừng do gián đoạn hoặc lỗi khởi tạo. Gián đoạn camera gốc được chuyển tiếp vào cơ chế khôi phục hiện hành.
 
 Không sửa CSS/giao diện xem trước, tùy chọn người dùng, đường xem lại/tải xuống, quy tắc đặt tên hay quản lý Kho Video. Không chuyển đổi video cũ và không chạy migration/dịch vụ dữ liệu thật.
@@ -38,21 +40,23 @@ Số đo tại máy kiểm thử, 16 tệp MP4 (8 tổ hợp camera/độ phân 
 | Thông số | Kết quả |
 | --- | --- |
 | Kích thước giải mã | Đúng toàn bộ bốn kích thước, gồm 4K dọc/ngang |
-| FPS trung bình toàn tệp ngắn | 29,07–30,32 FPS |
-| FPS đoạn ổn định 0,5–2,5 giây, camera trước desktop | 29,77–29,94 FPS |
-| FPS đoạn ổn định, camera sau đối chứng desktop | 29,30–29,82 FPS |
+| FPS trung bình toàn tệp ngắn | 29,04–31,05 FPS |
+| FPS đoạn ổn định 0,5–2,5 giây, camera trước desktop | 29,78–29,82 FPS |
+| FPS đoạn ổn định, camera sau đối chứng desktop | 29,81–29,83 FPS |
 | Codec | H.264 / AAC |
 | Âm thanh giải mã | Stereo, 48.000 Hz; đúng tần số riêng từng kênh |
 | Sai lệch chớp sáng–âm thanh lớn nhất | 66,7 ms (độ phân giải phép đo hình 33,3 ms) |
 | Tệp tải xuống so với Kho Video | Cùng kích thước và SHA-256 |
 
-Kiểm thử nghiệp vụ: 63/63 đạt. Hồi quy trình duyệt: 95 đạt, 13 bỏ qua theo cấu hình có sẵn; kiểm tra cuối cùng cho studio, từ chối hạ chất lượng và gián đoạn: 6/6 đạt. Đồng bộ và các dịch vụ giả lập: 21/21 đạt.
+Kiểm thử nghiệp vụ: 63/63 đạt. Hồi quy trình duyệt: 95 đạt, 13 bỏ qua theo cấu hình có sẵn. Sau khi thêm kiểm tra thông lượng thực và chuẩn bị khung hình: chạy lại toàn bộ 24/24 trường hợp camera/studio, tất cả đạt; cả 16 tệp thử trên Windows hoàn tất ở chất lượng gốc. Đồng bộ và các dịch vụ giả lập: 21/21 đạt.
 
 ## Giới hạn Safari/iPhone
 
 Chưa xác minh iPhone 16 Pro Max vật lý, Photos/Files trên iPhone hoặc CapCut. Chrome với viewport iPhone không thay thế kiểm thử Safari thật. Chưa xác nhận hiệu năng 4K khi quay dài, nhiệt, pin, ánh sáng yếu hay ứng dụng ở nền trên iPhone.
 
 Đường lật hình cần Canvas capture, requestVideoFrameCallback và requestFrame; kiểm tra kích thước/FPS track xuất trước khi mở encoder. Nếu trình duyệt không cung cấp/giữ được thông số yêu cầu, ứng dụng báo lỗi, không tự hạ xuống 1080p, giảm bitrate hoặc ghi camera trước sai chiều. Khả năng API và FPS khai báo không bảo đảm thông lượng mã hóa thực trên mọi thiết bị; cần đo lại tệp Safari trên thiết bị thật để xác nhận toàn bộ điều kiện chất lượng.
+
+Kiểm thử CI Linux không GPU đã phát hiện đường Canvas 4K có thể chỉ xử lý 10–12 FPS dù track khai báo 30 FPS. Vì vậy bản sửa còn đo số khung thực sự vẽ được theo cửa sổ 1,5 giây: nếu thấp hơn 90% tốc độ camera, hoặc thao tác vẽ lỗi/khung đổi kích thước, bộ ghi dừng qua cơ chế gián đoạn hiện hành, hiện thông báo chất lượng và giữ tệp ở trạng thái chưa hoàn tất. Không tự hạ cấu hình và không báo đó là một lượt quay hoàn chỉnh. Các bài kiểm thử cũng xác nhận trường hợp này. CI chạy kiểm thử video tuần tự để tránh việc nhiều bản ghi 4K cùng tranh tài nguyên runner; ngưỡng kiểm tra đồng bộ hình/tiếng không được nới.
 
 Tài liệu nền tảng: [WebKit MediaRecorder](https://webkit.org/blog/11353/), [Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream), [requestFrame](https://developer.mozilla.org/en-US/docs/Web/API/CanvasCaptureMediaStreamTrack/requestFrame), [requestVideoFrameCallback](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback).
 

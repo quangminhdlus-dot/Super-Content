@@ -30,7 +30,8 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_RESEARCH_API_URL: ${{ vars.VITE_RESEARCH_API_URL }}
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      # Real-time 4K recording checks need exclusive runner resources.
+      - run: npm run test:e2e -- --workers=1
       - run: npm run test:sync
       - uses: actions/upload-artifact@v4
         if: failure()

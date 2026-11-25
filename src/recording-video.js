@@ -1,7 +1,7 @@
 // CSS transforms affect the preview only. Mirror decoded camera pixels before
 // the existing encoder, without changing its audio graph or encoding options.
 export function recordingVideo(preview, stream, mirrored) {
-  if (!mirrored) return {stream, close() {}};
+  if (!mirrored) return {stream, async ready() {}, monitor() {}, close() {}};
   const camera = stream.getVideoTracks()[0];
   const {width, height, frameRate} = camera.getSettings();
   const canvas = document.createElement("canvas");
@@ -32,22 +32,68 @@ export function recordingVideo(preview, stream, mirrored) {
     output.getTracks().forEach(item => item.stop());
     throw Error("Trình duyệt không giữ được độ phân giải/FPS của camera khi ghi cùng chiều. Không hạ chất lượng video.");
   }
-  let closed = false, callback;
+  let closed = false, callback, qualityTimer, frames = 0, fail;
+  const qualityError = "Thiết bị không xử lý kịp video cùng chiều camera trước ở độ phân giải/FPS hiện tại. Đã dừng quay; không hạ chất lượng. Bản ghi gián đoạn vẫn được giữ trong Kho Video.";
   function next() {
     if (closed) return;
-    draw();
-    // Request each camera frame explicitly: the canvas's periodic capture timer
-    // can otherwise miss frames when its clock falls between camera callbacks.
-    track.requestFrame();
+    try {
+      if (preview.videoWidth !== canvas.width || preview.videoHeight !== canvas.height) throw Error("Camera resized");
+      draw();
+      // The periodic canvas capture timer can otherwise miss camera callbacks.
+      track.requestFrame();
+      frames++;
+    } catch {
+      fail?.(qualityError);
+      return;
+    }
     callback = preview.requestVideoFrameCallback(next);
   }
   callback = preview.requestVideoFrameCallback(next);
   return {
     // Pass the original microphone track to the existing stereo processor.
     stream:new MediaStream([track, ...stream.getAudioTracks()]),
+    async ready() {
+      // Confirm a generated frame is available before starting the unchanged
+      // audio encoder. GPU readback may otherwise delay the first video frame.
+      const probe = document.createElement("video");
+      probe.muted = probe.playsInline = true;
+      probe.srcObject = new MediaStream([track]);
+      let timer;
+      try {
+        await Promise.race([
+          probe.play(),
+          new Promise((_, reject) => { timer = setTimeout(() => reject(Error("Chưa chuẩn bị được khung hình ghi ở chất lượng camera hiện tại.")), 7000); }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+        probe.pause();
+        probe.srcObject = null;
+        probe.load();
+      }
+    },
+    monitor(interrupted) {
+      let at = performance.now(), count = frames;
+      fail = reason => {
+        clearInterval(qualityTimer);
+        fail = undefined;
+        interrupted(reason);
+      };
+      // Track the real draw throughput, not merely the nominal canvas FPS.
+      // An incapable device must stop explicitly instead of saving a completed
+      // low-FPS recording. Never lower resolution, frame rate or bitrate.
+      qualityTimer = setInterval(() => {
+        const now = performance.now(), elapsed = now - at;
+        const fps = (frames - count) * 1000 / elapsed;
+        at = now;
+        count = frames;
+        if (fps < frameRate * .9) fail?.(qualityError);
+      }, 1500);
+    },
     close() {
       if (closed) return;
       closed = true;
+      clearInterval(qualityTimer);
+      fail = undefined;
       preview.cancelVideoFrameCallback(callback);
       track.stop();
       canvas.width = canvas.height = 0;
@@ -70,9 +116,16 @@ export async function createPreviewRecording(core, preview, capture, changed, in
     output.close();
   };
   try {
+    await output.ready();
     recording = await core.VideoSession.create(output.stream, changed, interrupted, source, capture.context);
     const stop = recording.stop.bind(recording);
     recording.stop = async () => { try { await stop(); } finally { close(); } };
+    const start = recording.start.bind(recording);
+    recording.start = onStarted => start(() => {
+      // Reuse VideoSession's existing interruption/manifest finalization path.
+      output.monitor(reason => recording.interrupt(reason));
+      onStarted?.();
+    });
     // The generated track cannot relay interruption events from its camera.
     if (output.stream !== capture.stream) {
       camera.addEventListener("ended", ended);
