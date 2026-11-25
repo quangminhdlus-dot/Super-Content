@@ -894,7 +894,7 @@ function settings() {
       )
       .join(
         "",
-      )}<section class="settings-section"><h3>Dữ liệu & ứng dụng</h3><button data-action="export">Tải bản sao JSON</button><p class="muted">iPhone: mở bằng Safari → Chia sẻ → Thêm vào Màn hình chính. Cần truy cập trang qua HTTPS.</p><div class="mobile-utilities"><button data-view="archive">Lưu trữ (${count("archive")})</button><button data-view="trash">Thùng rác (${count("trash")})</button></div></section>`,
+      )}<section class="settings-section"><h3>Dữ liệu & ứng dụng</h3><p class="muted">Phiên bản ghi hình <code title="${e(__PROMPTER_REVISION__)}">${e(__PROMPTER_REVISION__.slice(0, 7))}</code></p><button data-action="export">Tải bản sao JSON</button><p class="muted">iPhone: mở bằng Safari → Chia sẻ → Thêm vào Màn hình chính. Cần truy cập trang qua HTTPS.</p><div class="mobile-utilities"><button data-view="archive">Lưu trữ (${count("archive")})</button><button data-view="trash">Thùng rác (${count("trash")})</button></div></section>`,
   });
   const form = dialog.querySelector("#auth-form");
   if (form)
