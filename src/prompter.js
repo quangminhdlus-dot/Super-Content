@@ -2,7 +2,8 @@ import {createStudioView} from "./prompter-view.js";
 import {createStudioReader} from "./prompter-reader.js";
 import "./prompter.css";
 const runtimeUrl = new URL("prompter/runtime.js", document.baseURI);
-const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", wake: true, mic: "" };
+runtimeUrl.searchParams.set("v", __PROMPTER_REVISION__);
+const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", cover: 90, wake: true, mic: "" };
 const preferenceKey = "super-content:prompter";
 const clamp = (value, min, max) => Math.min(max, Math.max(value, min));
 const readyPhases = new Set(["listening", "recognizing", "processing", "recognized"]);
@@ -15,9 +16,10 @@ function preferences() {
       font: Number.isFinite(p.font) ? clamp(p.font, 24, 100) : defaults.font,
       anchor: Number.isFinite(p.anchor) ? clamp(p.anchor, 0, 1) : 0,
       mode: ["voice", "fixed", "manual"].includes(p.mode) ? p.mode : "voice",
-      wpm: Number.isFinite(p.wpm) ? clamp(p.wpm, 40, 260) : defaults.wpm,
+      wpm: Number.isFinite(p.wpm) ? clamp(p.wpm, 50, 260) : defaults.wpm,
       countdown: Number.isFinite(p.countdown) ? clamp(Math.round(p.countdown), 1, 10) : 3,
       framing: p.framing === "landscape" ? "landscape" : "portrait",
+      cover: Number.isFinite(p.cover) ? clamp(Math.round(p.cover), 0, 100) : defaults.cover,
       wake: p.wake === true,
       mic: typeof p.mic === "string" ? p.mic : "",
     };
@@ -31,7 +33,7 @@ function mediaError(error) {
     case "NotAllowedError": return "Cho phép Camera và Micro trong cài đặt website, rồi nhấn Thử lại.";
     case "NotFoundError": return "Kiểm tra camera và micro đã kết nối, rồi nhấn Thử lại.";
     case "NotReadableError": return "Đóng ứng dụng khác đang dùng camera hoặc micro, rồi nhấn Thử lại.";
-    case "OverconstrainedError": return "Thiết bị đã chọn không còn khả dụng. Chọn Micro hệ thống trong Cài đặt.";
+    case "OverconstrainedError": return "Camera hoặc micro không hỗ trợ cấu hình hiện tại. Kiểm tra thiết bị rồi nhấn Thử lại.";
     default: return error?.message || "Chưa mở được camera hoặc micro.";
   }
 }
@@ -59,13 +61,21 @@ export function openPrompter(source, callbacks, initialContext) {
   el.script.setAttribute("aria-label", source.title || "Kịch bản");
   el.script.textContent = source.text;
   el.flip.hidden = el.cameraState.hidden = el.previewBtn.hidden = readOnly;
-  el.framingRow.hidden = el.countdownRow.hidden = el.draftsBtn.hidden = readOnly;
+  el.framingRow.hidden = el.countdownRow.hidden = el.draftsBtn.hidden = el.background.hidden = el.coverRow.hidden = readOnly;
+  el.previewBtn.title = "Xem toàn bộ khung hình ghi";
+  el.cover.value = prefs.cover;
+  applyCover();
   el.wake.disabled = !navigator.wakeLock;
   el.font.value = prefs.font;
   el.speed.value = prefs.wpm;
   el.countdown.value = prefs.countdown;
   el.framing.value = prefs.framing;
   el.wake.checked = prefs.wake;
+
+  function applyCover() {
+    el.blackout.style.opacity = String(prefs.cover / 100);
+    el.coverValue.textContent = prefs.cover + "%";
+  }
 
   function active() {
     return readOnly ? reading : phase === "recording";
@@ -108,6 +118,7 @@ export function openPrompter(source, callbacks, initialContext) {
     if (!status && phase === "waiting" && !mediaReady()) status = "Đang chờ camera và micro…";
     if (!status && phase === "starting") status = "Đang bắt đầu quay…";
     if (!status && phase === "stopping") status = "Đang hoàn tất video…";
+    if (!status && capture?.notice?.startsWith("Trình duyệt không báo")) status = "Kiểm tra hướng camera trong hình xem trước.";
     if (el.status.textContent !== status) el.status.textContent = status;
     el.stage.dataset.semantic = String(semanticReady);
     el.fontValue.textContent = prefs.font + " px";
@@ -123,7 +134,7 @@ export function openPrompter(source, callbacks, initialContext) {
 
   function tick(now) {
     if (destroyed) return;
-    reader.move(now, Math.min(now - lastTick, 40));
+    if (!document.hidden) reader.move(now, Math.max(0, now - lastTick));
     lastTick = now;
     if (phase === "countdown") {
       const seconds = Math.ceil((deadline - now) / 1000);
@@ -177,58 +188,60 @@ export function openPrompter(source, callbacks, initialContext) {
   function showPreview(visible) {
     el.preview.hidden = !visible;
     if (visible) el.previewArea.prepend(el.camera);
-    else el.stage.append(el.camera);
+    else el.background.prepend(el.camera);
     el.camera.classList.toggle("show", visible);
     if (capture?.stream.getVideoTracks().length) void el.camera.play().catch(() => {});
   }
 
-  function prepare() {
+  function watchCapture(input) {
+    captureEvents?.abort();
+    captureEvents = new AbortController();
+    const update = () => {
+      if (capture !== input || destroyed) return;
+      if (input.stream.getTracks().some(track => track.readyState === "ended")) {
+        captureError = "Camera hoặc micro đã ngắt. Nhấn Thử lại.";
+      }
+      maybeCountdown();
+      syncControls();
+    };
+    for (const track of input.stream.getTracks()) {
+      for (const type of ["mute", "unmute", "ended"]) track.addEventListener(type, update, {signal:captureEvents.signal});
+    }
+    if (!readOnly) {
+      if (el.camera.srcObject === input.stream) el.camera.srcObject = null;
+      el.camera.srcObject = input.stream;
+      void el.camera.play().catch(() => {});
+    }
+  }
+
+  function prepare(cameraOnly = false) {
     if (!core || destroyed || (readOnly && (prefs.mode !== "voice" || !reading))) return Promise.resolve();
     if (capturePending) return capturePending;
-    releaseCapture();
+    const current = cameraOnly && capture?.stream.getAudioTracks().some(track => track.readyState === "live") ? capture : undefined;
+    if (!current) releaseCapture();
     captureError = "";
-    const chosen = {facing, framing: prefs.framing, mic:prefs.mic};
-    capturePending = Promise.resolve().then(async () => {
-      let input;
-      const unlockedContext = initialContext;
-      initialContext = undefined;
-      if (readOnly) {
-        const context = unlockedContext ?? new AudioContext({latencyHint:"interactive"});
-        void context.resume().catch(() => {});
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({audio:chosen.mic ? {deviceId:{exact:chosen.mic}} : true});
-          input = {stream, context};
-        } catch (error) {
-          void context.close().catch(() => {});
-          throw error;
-        }
-      } else {
-        try {
-          input = await core.openCapture(chosen.framing, chosen.mic, chosen.facing, unlockedContext);
-        } catch (error) {
-          if (unlockedContext?.state !== "closed") void unlockedContext?.close().catch(() => {});
-          throw error;
-        }
+    const chosen = {facing, framing:prefs.framing, mic:prefs.mic};
+    const unlockedContext = initialContext;
+    initialContext = undefined;
+    const open = async () => {
+      if (current) {
+        await core.switchCaptureCamera(current, chosen.framing, chosen.facing, signals.signal);
+        if (!destroyed) watchCapture(current);
+        return;
       }
+      const input = readOnly ? await core.openMicrophone(chosen.mic, unlockedContext) :
+        await core.openCapture(chosen.framing, chosen.mic, chosen.facing, unlockedContext);
       if (destroyed || (readOnly && (prefs.mode !== "voice" || !reading))) {
         core.closeCapture(input);
         return;
       }
+      if (input.microphoneReset && prefs.mic === chosen.mic) {
+        prefs.mic = "";
+        el.mic.value = "";
+        savePreferences();
+      }
       capture = input;
-      const update = () => {
-        if (capture !== input || destroyed) return;
-        if (input.stream.getTracks().some(track => track.readyState === "ended")) captureError = "Camera hoặc micro đã ngắt. Nhấn Thử lại.";
-        maybeCountdown();
-        syncControls();
-      };
-      captureEvents = new AbortController();
-      for (const track of input.stream.getTracks()) {
-        for (const type of ["mute", "unmute", "ended"]) track.addEventListener(type, update, {signal:captureEvents.signal});
-      }
-      if (!readOnly) {
-        el.camera.srcObject = input.stream;
-        void el.camera.play().catch(() => {});
-      }
+      watchCapture(input);
       const audio = input.context;
       meter = audio.createAnalyser();
       meter.fftSize = 512;
@@ -236,9 +249,11 @@ export function openPrompter(source, callbacks, initialContext) {
       meterSource = audio.createMediaStreamSource(input.stream);
       meterSource.connect(meter);
       syncVoice();
-    }).catch(error => {
+    };
+    capturePending = open().catch(error => {
+      if (unlockedContext?.state !== "closed") void unlockedContext?.close().catch(() => {});
       if (destroyed) return;
-      releaseCapture();
+      if (!current) releaseCapture();
       captureError = mediaError(error);
       if (phase === "waiting") usePhase("idle");
     }).finally(() => {
@@ -271,7 +286,7 @@ export function openPrompter(source, callbacks, initialContext) {
       return;
     }
     usePhase("waiting");
-    if (!capture || capture.stream.getTracks().some(track => track.readyState !== "live")) void prepare();
+    if (!mediaReady()) void prepare(true);
     else {
       void capture.context.resume().catch(() => {});
       maybeCountdown();
@@ -510,6 +525,11 @@ export function openPrompter(source, callbacks, initialContext) {
     syncControls();
   });
   listen(el.speed, "input", () => { prefs.wpm = el.speed.valueAsNumber; savePreferences(); syncControls(); });
+  listen(el.cover, "input", () => {
+    prefs.cover = el.cover.valueAsNumber;
+    applyCover();
+    savePreferences();
+  });
   for (const button of modeButtons) listen(button, "click", () => changeMode(button.dataset.mode));
   listen(el.record, "click", () => {
     if (readOnly) {
@@ -526,11 +546,11 @@ export function openPrompter(source, callbacks, initialContext) {
       requestRecording();
     }
   });
-  listen(el.flip, "click", () => { facing = facing === "user" ? "environment" : "user"; void prepare(); });
+  listen(el.flip, "click", () => { facing = facing === "user" ? "environment" : "user"; void prepare(true); });
   listen(el.retry, "click", () => {
     message = "";
     if (captureError) {
-      if (!session) void prepare();
+      if (!session) void prepare(!readOnly && !capture?.stream.getVideoTracks().some(track => track.readyState === "live"));
     } else {
       voice?.stop();
       syncVoice();
@@ -556,7 +576,7 @@ export function openPrompter(source, callbacks, initialContext) {
     } catch {}
   });
   listen(el.settingsClose, "click", () => showPanel(null));
-  listen(el.framing, "change", () => { prefs.framing = el.framing.value; savePreferences(); void prepare(); });
+  listen(el.framing, "change", () => { prefs.framing = el.framing.value; savePreferences(); void prepare(true); });
   listen(el.mic, "change", () => { prefs.mic = el.mic.value; savePreferences(); void prepare(); });
   listen(el.wake, "change", () => { prefs.wake = el.wake.checked; savePreferences(); void updateWake(); });
   listen(el.countdown, "change", () => {
@@ -598,6 +618,7 @@ export function openPrompter(source, callbacks, initialContext) {
     else if (!session && phase !== "starting") close();
   });
   listen(document, "visibilitychange", () => {
+    lastTick = performance.now();
     if (document.hidden && ["waiting", "countdown"].includes(phase)) usePhase("idle");
     void updateWake();
   });

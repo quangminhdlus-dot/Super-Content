@@ -1,9 +1,56 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(value, min));
 
+// Match elapsed words to the actual lines produced by browser layout.
+function measurePace(script, scroll) {
+  const content = script.textContent;
+  const walker = document.createTreeWalker(script, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode(), offset = 0, firstTop, count = 0;
+  const range = document.createRange();
+  const points = [];
+  const lineHeight = parseFloat(getComputedStyle(script).lineHeight);
+  for (const word of content.matchAll(/\S+/gu)) {
+    while (node && word.index >= offset + node.length) {
+      offset += node.length;
+      node = walker.nextNode();
+    }
+    if (!node) break;
+    const start = word.index - offset;
+    range.setStart(node, start);
+    range.setEnd(node, start + 1);
+    const top = range.getBoundingClientRect().top;
+    firstTop ??= top;
+    const y = Math.max(0, top - firstTop);
+    if (!points.length || y - points.at(-1).y > lineHeight / 2) points.push({words:count, y});
+    count++;
+  }
+  if (points.length) {
+    // The end is the real scroll limit, after the final line's own reading time.
+    const last = points.at(-1).y;
+    points.push({words:count, y:Math.max(last, scroll.scrollHeight - scroll.clientHeight)});
+  }
+  return points;
+}
+
+function convertPace(points, value, from, to) {
+  if (!points.length) return 0;
+  const end = points.at(-1);
+  if (value >= end[from]) return end[to];
+  let lo = 0, hi = points.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (points[mid][from] <= value) lo = mid;
+    else hi = mid;
+  }
+  const a = points[lo], b = points[hi];
+  const span = b[from] - a[from];
+  return span > 0 ? a[to] + (b[to] - a[to]) * clamp((value - a[from]) / span, 0, 1) : a[to];
+}
+
 export function createStudioReader({overlay, el, prefs, source, listen, active, seek, savePreferences}) {
   let core, motion, speechPath, recentVoice = -Infinity;
   let segments = [], offsets = [], activeSegment = -1, anchor = 0, maxAnchor = 0;
-  let dragPointer, dragY = 0, dragAnchor = 0, manualUntil = 0, speedPosition = 0, lastScroll = 0, wordCount = 0;
+  let dragPointer, dragY = 0, dragAnchor = 0, manualUntil = 0, lastScroll = 0;
+  let pace = [], paceKey = "", fixedWords = 0;
   const grips = el.guide.querySelectorAll("button");
 
   function selectSegment(index) {
@@ -45,11 +92,25 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
       const rect = segment.getBoundingClientRect();
       return {top: rect.top - box.top + el.scroll.scrollTop, height: rect.height};
     });
-    if (keepPosition && offsets[activeSegment]) el.scroll.scrollTop = offsets[activeSegment].top - anchor + oldRelative;
+    const paceChanged = refreshPace();
+    if (keepPosition && prefs.mode === "fixed" && paceChanged && pace.length && fixedWords > 0) {
+      el.scroll.scrollTop = convertPace(pace, fixedWords, "words", "y");
+    } else if (keepPosition && offsets[activeSegment] && prefs.mode !== "fixed") {
+      el.scroll.scrollTop = offsets[activeSegment].top - anchor + oldRelative;
+    }
     measure.previousAnchor = anchor;
     speechPath = undefined;
-    speedPosition = lastScroll = el.scroll.scrollTop;
+    lastScroll = el.scroll.scrollTop;
     motion?.reset(lastScroll);
+  }
+
+  function refreshPace() {
+    if (!offsets.length || prefs.mode !== "fixed") return false;
+    const key = prefs.font + ":" + el.scroll.clientWidth;
+    if (key === paceKey) return false;
+    paceKey = key;
+    pace = measurePace(el.script, el.scroll);
+    return true;
   }
 
   function renderScript() {
@@ -77,7 +138,6 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
     }
     if (end < formatted.plain.length) append(fragment, end, formatted.plain.length);
     el.script.replaceChildren(fragment);
-    wordCount = formatted.plain.trim().split(/\s+/u).filter(Boolean).length;
     motion = new core.ScrollMotion();
     selectSegment(0);
     measure(false);
@@ -121,16 +181,19 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
     if (prefs.mode === "manual" || now < manualUntil ||
         (el.scroll.scrollTop !== lastScroll && !speechPath && prefs.mode !== "fixed")) {
       trackManualPosition();
-      speedPosition = lastScroll = el.scroll.scrollTop;
+      lastScroll = el.scroll.scrollTop;
+      fixedWords = convertPace(pace, lastScroll, "y", "words");
       return;
     }
     if (active() && prefs.mode === "fixed") {
-      if (el.scroll.scrollTop !== lastScroll) speedPosition = el.scroll.scrollTop;
-      const limit = el.scroll.scrollHeight - el.scroll.clientHeight;
-      const distance = (offsets.at(-1).top + offsets.at(-1).height - anchor) / Math.max(wordCount, 1);
-      speedPosition = Math.min(limit, speedPosition + distance * prefs.wpm * elapsed / 60000);
-      el.scroll.scrollTop = Math.round(speedPosition);
+      if (refreshPace() || el.scroll.scrollTop !== lastScroll) fixedWords = convertPace(pace, el.scroll.scrollTop, "y", "words");
+      if (!pace.length) return;
+      fixedWords = Math.min(pace.at(-1).words, fixedWords + prefs.wpm * elapsed / 60000);
+      const position = convertPace(pace, fixedWords, "words", "y");
+      el.scroll.scrollTop = Math.round(position);
       lastScroll = el.scroll.scrollTop;
+      const residual = lastScroll - position;
+      el.script.style.translate = Math.abs(residual) > .03 ? "0 " + residual.toFixed(2) + "px" : "";
       trackManualPosition();
     } else if (active() && prefs.mode === "voice" && speechPath) {
       if (!speechPath.backward && now - recentVoice <= 250 && now - speechPath.at < 650) {
@@ -186,7 +249,9 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
   function resetMotion() {
     speechPath = undefined;
     el.script.style.translate = "";
-    speedPosition = lastScroll = el.scroll.scrollTop;
+    lastScroll = el.scroll.scrollTop;
+    refreshPace();
+    fixedWords = convertPace(pace, lastScroll, "y", "words");
     motion?.reset(lastScroll);
   }
   const resize = new ResizeObserver(() => measure());

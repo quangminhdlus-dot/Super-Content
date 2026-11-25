@@ -20,7 +20,17 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await context.addInitScript(() => {
     const native = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     window.inputs = [];
+    window.attempts = [];
+    const old = JSON.parse(localStorage.getItem("super-content:prompter") || "{}");
+    if (old.mic === undefined) localStorage.setItem("super-content:prompter", JSON.stringify({...old, mic:"expired"}));
     navigator.mediaDevices.getUserMedia = async constraints => {
+      window.attempts.push(constraints);
+      if (constraints.audio?.deviceId?.ideal === "expired") {
+        throw Object.assign(new DOMException("Stale input", "OverconstrainedError"), {constraint:"deviceId"});
+      }
+      if (constraints.video?.width && !window.inputs.some(input => input.constraints.video)) {
+        throw Object.assign(new DOMException("Sensor dimensions", "OverconstrainedError"), {constraint:"width"});
+      }
       const stream = await native(constraints);
       window.inputs.push({constraints, stream});
       return stream;
@@ -59,9 +69,16 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await page.getByRole("button", {name:"Nhắc chữ không camera"}).click();
   const read = page.getByRole("dialog", {name:"Nhắc chữ", exact:true});
   await expect(read.getByTestId("reader").locator("strong")).toHaveText("Giữ nguyên dấu, và chữ đậm!");
+  await expect(read.locator(".sc-p-backdrop")).toBeHidden();
+  await read.getByRole("button", {name:"Cài đặt", exact:true}).click();
+  await expect(read.getByRole("slider", {name:"Độ phủ đen của camera"})).toBeHidden();
+  await read.getByRole("button", {name:"Đóng cài đặt"}).click();
   await expect.poll(async () => (await inputs()).length).toBe(1);
-  expect((await inputs())[0].video).toBeUndefined();
+  expect((await inputs())[0].video).toBe(false);
+  expect(await page.evaluate(() => window.attempts.slice(0,2).map(item => item.audio.deviceId))).toEqual([{ideal:"expired"}, undefined]);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("super-content:prompter")).mic)).toBe("");
   await read.getByRole("button", {name:"Về kịch bản"}).click();
+  await page.evaluate(() => { const key = "super-content:prompter"; localStorage.setItem(key, JSON.stringify({...JSON.parse(localStorage.getItem(key)), mic:"expired"})); });
 
   await page.getByRole("button", {name:"Quay với Prompter"}).click();
   const studio = page.getByRole("dialog", {name:"Quay với Prompter", exact:true});
@@ -72,14 +89,44 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   const preview = studio.getByRole("button", {name:"Xem camera"});
   await expect(preview).toBeEnabled();
   const beforePreview = (await inputs()).length;
+  const cameraVideo = studio.locator(".sc-p-camera-video");
+  const blackout = studio.locator(".sc-p-blackout");
+  const settings = studio.getByRole("button", {name:"Cài đặt", exact:true});
+  const closeSettings = studio.getByRole("button", {name:"Đóng cài đặt"});
+  const cover = studio.getByRole("slider", {name:"Độ phủ đen của camera"});
+  const setCover = value => cover.evaluate((node, value) => {
+    node.value = String(value);
+    node.dispatchEvent(new Event("input", {bubbles:true}));
+  }, value);
+  await expect(blackout).toHaveCSS("opacity", "0.9");
+  await expect(cameraVideo).toHaveCSS("object-fit", "cover");
+  await expect(cameraVideo).toHaveCSS("opacity", "1");
+  await expect(blackout).toHaveCSS("pointer-events", "none");
+  expect(await blackout.boundingBox()).toEqual(await cameraVideo.boundingBox());
+  await settings.click();
+  for (const level of [0, 50, 90, 100, 50]) {
+    await setCover(level);
+    await expect(blackout).toHaveCSS("opacity", String(level / 100));
+    await expect(studio.locator("[data-p=coverValue]")).toHaveText(level + "%");
+  }
+  await closeSettings.click();
+  expect((await inputs()).length).toBe(beforePreview);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("super-content:prompter")).mic)).toBe("");
   await preview.click();
   await expect(studio.locator(".sc-p-camera-grid")).toBeVisible();
   await expect(studio.locator(".sc-p-camera-video")).toHaveCSS("transform", "none");
   await studio.getByRole("button", {name:"Đóng xem camera"}).click();
   expect((await inputs()).length).toBe(beforePreview);
+  const microphone = await page.evaluateHandle(() => window.inputs.at(-1).stream.getAudioTracks()[0]);
+  const front = await page.evaluateHandle(() => window.inputs.at(-1).stream.getVideoTracks()[0]);
   await studio.getByRole("button", {name:"Đổi camera"}).click();
   await expect(preview).toBeEnabled();
   expect((await inputs()).at(-1).video.facingMode.ideal).toBe("environment");
+  expect(await page.evaluate(() => window.inputs.at(-1).constraints.audio)).toBe(false);
+  expect(await microphone.evaluate(track => track.readyState)).toBe("live");
+  expect(await front.evaluate(track => track.readyState)).toBe("ended");
+  await expect(studio.getByRole("button", {name:"Thử lại"})).toBeHidden();
+  await expect(blackout).toHaveCSS("opacity", "0.5");
 
   const left = studio.getByRole("slider", {name:"Vị trí đọc bên trái"});
   const right = studio.getByRole("slider", {name:"Vị trí đọc bên phải"});
@@ -110,6 +157,11 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   await expect(studio.locator(".sc-p-live")).toContainText("ĐANG QUAY");
   await expect(studio.locator(".sc-p-preview")).toBeHidden();
   const captureCount = (await inputs()).length;
+  await settings.click();
+  await setCover(100);
+  await expect(blackout).toHaveCSS("opacity", "1");
+  await closeSettings.click();
+  await expect(studio.locator(".sc-p-live")).toContainText("ĐANG QUAY");
   await studio.getByRole("button", {name:"Tốc độ cố định"}).click();
   await expect(studio.getByRole("slider", {name:"Tốc độ đọc"})).toBeVisible();
   await expect.poll(() => studio.locator(".sc-p-scroll").evaluate(node => node.scrollTop)).toBeGreaterThan(15);
@@ -119,13 +171,28 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   expect((await inputs()).length).toBe(captureCount);
   await expect(studio.locator(".sc-p-live")).toContainText(/0:0[2-9]/);
   await studio.getByRole("button", {name:"Dừng quay"}).click();
-  await expect(studio.locator(".sc-p-review video")).toHaveAttribute("src", /^blob:/);
+  const recorded = studio.locator(".sc-p-review video");
+  await expect(recorded).toHaveAttribute("src", /^blob:/);
+  await expect.poll(() => recorded.evaluate(video => video.readyState >= 2 && video.videoWidth > 0)).toBe(true);
+  await recorded.evaluate(async video => { video.muted = true; await video.play(); });
+  await expect.poll(() => recorded.evaluate(video => video.currentTime)).toBeGreaterThan(.3);
+  const light = await recorded.evaluate(video => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 32;
+    const context = canvas.getContext("2d");
+    context.drawImage(video, 0, 0, 32, 32);
+    const rgba = context.getImageData(0, 0, 32, 32).data;
+    return rgba.filter((channel, index) => index % 4 !== 3 && channel > 40).length;
+  });
+  expect(light).toBeGreaterThan(0);
 
   await studio.getByRole("button", {name:"Video chưa lưu"}).click();
   await studio.getByRole("button", {name:"Đóng video chưa lưu"}).click();
   await studio.getByRole("button", {name:"Về kịch bản"}).click();
+  expect((await inputs()).every(input => input.states.every(state => state === "ended"))).toBe(true);
   await page.getByRole("button", {name:"Quay với Prompter"}).click();
   await expect(studio.getByTestId("reader")).toHaveCSS("font-size", "46px");
+  await expect(blackout).toHaveCSS("opacity", "1");
   await expect(studio.getByRole("slider", {name:"Vị trí đọc bên trái"})).toHaveAttribute("aria-valuenow", anchor);
   await studio.getByRole("button", {name:"Cài đặt", exact:true}).click();
   await studio.getByRole("button", {name:"Video chưa lưu (1)"}).click();
@@ -135,7 +202,15 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
   const downloading = page.waitForEvent("download");
   await studio.getByRole("button", {name:"Tải xuống"}).click();
   expect(await (await downloading).failure()).toBeNull();
+  const draftCount = () => page.evaluate(async () => {
+    const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle("super-prompter-recordings");
+    let count = 0;
+    for await (const entry of folder.values()) if (entry.kind === "directory") count++;
+    return count;
+  });
+  expect(await draftCount()).toBe(1);
   await studio.getByRole("button", {name:"Đã lưu trên thiết bị"}).click();
+  await expect.poll(draftCount).toBe(0);
   await studio.getByRole("button", {name:"Chuyển sang Hoàn thiện"}).click();
   await expect(page.locator(".editor-heading .eyebrow")).toHaveText("Hoàn thiện");
   await expect(page.locator("#script")).toHaveValue(latest);

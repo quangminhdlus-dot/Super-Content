@@ -15,6 +15,10 @@ export function createStudioView(readOnly) {
   overlay.className = "prompter-overlay";
   overlay.setAttribute("aria-label", readOnly ? "Nhắc chữ" : "Quay với Prompter");
   overlay.innerHTML = `
+    <div class="sc-p-backdrop" data-p="background" aria-hidden="true">
+      <video data-p="camera" class="sc-p-camera-video" autoplay muted playsinline aria-hidden="true"></video>
+      <div class="sc-p-blackout" data-p="blackout"></div>
+    </div>
     <header class="sc-p-top">
       ${iconButton("back", "Về kịch bản", "back")}
       <div class="sc-p-status">
@@ -35,10 +39,10 @@ export function createStudioView(readOnly) {
       </div>
       <div data-p="count" class="sc-p-count" role="status" hidden></div>
       <div data-p="preview" class="sc-p-preview" hidden>
+        <span class="sc-p-preview-label">Toàn khung ghi</span>
         ${iconButton("close", "Đóng xem camera", "previewClose")}
         <div class="sc-p-preview-area" data-p="previewArea"><div class="sc-p-camera-grid" aria-label="Lưới căn chỉnh 3×3"></div></div>
       </div>
-      <video data-p="camera" class="sc-p-camera-video" autoplay muted playsinline aria-hidden="true"></video>
     </div>
     <footer class="sc-p-bottom">
       <button type="button" data-p="retry" class="sc-p-secondary" hidden>Thử lại</button>
@@ -48,7 +52,7 @@ export function createStudioView(readOnly) {
         <button type="button" data-mode="fixed">Tốc độ cố định</button>
         <button type="button" data-mode="manual">Thủ công</button>
       </div>
-      <label class="sc-p-range" data-p="speedRow" hidden><span>WPM</span><input type="range" min="40" max="260" step="5" data-p="speed" aria-label="Tốc độ đọc"><output data-p="speedValue"></output></label>
+      <label class="sc-p-range" data-p="speedRow" hidden><span>WPM</span><input type="range" min="50" max="260" step="5" data-p="speed" aria-label="Tốc độ đọc"><output data-p="speedValue"></output></label>
       <div class="sc-p-actions">
         ${iconButton("camera", "Xem camera", "previewBtn")}
         <button type="button" class="sc-p-record" data-p="record" aria-label="Bắt đầu quay"><span></span></button>
@@ -59,6 +63,10 @@ export function createStudioView(readOnly) {
       <header><h2>Cài đặt</h2>${iconButton("close", "Đóng cài đặt", "settingsClose")}</header>
       <label data-p="countdownRow">Đếm ngược <input type="number" aria-label="Đếm ngược" min="1" max="10" data-p="countdown"> giây</label>
       <label data-p="framingRow">Hướng quay <select data-p="framing"><option value="portrait">Dọc 9:16</option><option value="landscape">Ngang 16:9</option></select></label>
+      <label class="sc-p-cover-row" data-p="coverRow">
+        Độ phủ đen của camera
+        <span><input type="range" min="0" max="100" step="1" data-p="cover" aria-label="Độ phủ đen của camera"><output data-p="coverValue"></output></span>
+      </label>
       <label>Giữ màn hình sáng <input type="checkbox" data-p="wake"></label>
       <details data-p="advanced"><summary>Micro</summary><label>Thiết bị <select data-p="mic" aria-label="Micro"><option value="">Micro hệ thống</option></select></label></details>
       <button type="button" data-p="draftsBtn" class="sc-p-secondary">Video chưa lưu</button>
