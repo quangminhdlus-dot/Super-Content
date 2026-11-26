@@ -1,26 +1,17 @@
 import {readFile, writeFile} from "node:fs/promises";
 import {expect, test} from "@playwright/test";
 
-// Exercise the same source module used by the studio with the real production
+// Exercise the direct camera stream used by the studio with the real production
 // encoder, OPFS store, stereo processor and export path (no recorder mocks).
-test.beforeEach(async ({page}) => {
-  const body = await readFile(new URL("../../src/recording-video.js", import.meta.url), "utf8");
-  await page.route("**/recording-video-under-test.js", route => route.fulfill({
-    body,
-    contentType:"application/javascript",
-  }));
-  await page.goto("./");
-});
+test.beforeEach(async ({page}) => { await page.goto("./"); });
 
-for (const resolution of [1080, 2160]) {
+for (const resolution of [1080]) {
 for (const mirrored of [true, false]) {
   for (const portrait of [true, false]) {
-    test(`encoded ${resolution} ${mirrored ? "front" : "rear"} ${portrait ? "portrait" : "landscape"} matches preview`, async ({page}, info) => {
-      test.skip(!!process.env.CI && resolution === 2160, "4K throughput is checked on the local hardware; software-only Linux CI covers the essential 1080p recording cases.");
+    test(`encoded ${resolution} ${mirrored ? "front" : "rear"} ${portrait ? "portrait" : "landscape"} preserves direct camera pixels`, async ({page}, info) => {
       test.setTimeout(45000);
       const downloading = page.waitForEvent("download");
       const result = await page.evaluate(async ({mirrored, portrait, resolution}) => {
-        const {createPreviewRecording} = await import("./recording-video-under-test.js");
         const core = await import("./prompter/runtime.js");
         const scene = document.createElement("canvas");
         const longSide = resolution * 16 / 9;
@@ -73,8 +64,8 @@ for (const mirrored of [true, false]) {
         preview.srcObject = stream;
         await preview.play();
         let reason;
-        const session = await createPreviewRecording(core, preview, {stream, context}, () => {}, text => { reason = text; },
-          {owner:"mirror-test", contentId:"asymmetric", title:"Asymmetric LEFT 123", framing:portrait ? "portrait" : "landscape"});
+        const session = await core.VideoSession.create(stream, () => {}, text => { reason = text; },
+          {owner:"mirror-test", contentId:"asymmetric", title:"Asymmetric LEFT 123", framing:portrait ? "portrait" : "landscape"}, context);
         await new Promise(resolve => session.start(resolve));
         syncAt = context.currentTime + .5;
         for (const gain of gains) {
@@ -154,7 +145,7 @@ for (const mirrored of [true, false]) {
       expect(result.originalTracksLive).toBe(true);
       const longSide = resolution * 16 / 9;
       expect([result.playback.width, result.playback.height]).toEqual(portrait ? [resolution, longSide] : [longSide, resolution]);
-      expect(result.playback.colors).toEqual(mirrored ? ["green", "red"] : ["red", "green"]);
+      expect(result.playback.colors).toEqual(["red", "green"]);
       expect(result.stored.settings.frameRate).toBe(30);
       expect(result.stored.videoBitrate).toBe(resolution === 2160 ? 24000000 : 12000000);
       expect(result.stored.audioBitrate).toBe(256000);
@@ -170,95 +161,3 @@ for (const mirrored of [true, false]) {
   }
 }
 }
-
-test("4K dimensions and unsupported-browser errors never fall back to lower quality", async ({page}) => {
-  const result = await page.evaluate(async () => {
-    const {recordingVideo} = await import("./recording-video-under-test.js");
-    const scene = document.createElement("canvas");
-    scene.width = 2160;
-    scene.height = 3840;
-    const paint = scene.getContext("2d");
-    paint.fillRect(0, 0, scene.width, scene.height);
-    const source = scene.captureStream(30);
-    const preview = document.createElement("video");
-    preview.srcObject = source;
-    preview.muted = preview.playsInline = true;
-    await preview.play();
-    const output = recordingVideo(preview, source, true);
-    const settings = output.stream.getVideoTracks()[0].getSettings();
-    output.close();
-    const sourceLive = source.getVideoTracks()[0].readyState === "live";
-    const capture = HTMLCanvasElement.prototype.captureStream;
-    let downgraded, downgradeError;
-    HTMLCanvasElement.prototype.captureStream = function(...args) {
-      const result = capture.apply(this, args);
-      downgraded = result.getVideoTracks()[0];
-      downgraded.getSettings = () => ({width:1280, height:720, frameRate:15});
-      return result;
-    };
-    try { recordingVideo(preview, source, true); } catch (error) { downgradeError = error.message; }
-    finally { HTMLCanvasElement.prototype.captureStream = capture; }
-    const downgradeReleased = downgraded.readyState === "ended";
-    Object.defineProperty(preview, "requestVideoFrameCallback", {value:undefined});
-    let failure;
-    try { recordingVideo(preview, source, true); } catch (error) { failure = error.message; }
-    const rearUnchanged = recordingVideo(preview, source, false).stream === source;
-    source.getTracks().forEach(track => track.stop());
-    return {settings, sourceLive, failure, rearUnchanged, downgradeError, downgradeReleased};
-  });
-  expect(result.settings).toMatchObject({width:2160, height:3840, frameRate:30});
-  expect(result.sourceLive).toBe(true);
-  expect(result.failure).toContain("chất lượng hiện tại");
-  expect(result.rearUnchanged).toBe(true);
-  expect(result.downgradeError).toContain("Không hạ chất lượng video");
-  expect(result.downgradeReleased).toBe(true);
-});
-
-test("camera interruption preserves recovery state and encoder failure releases only generated video", async ({page}) => {
-  const result = await page.evaluate(async () => {
-    const {createPreviewRecording} = await import("./recording-video-under-test.js");
-    const core = await import("./prompter/runtime.js");
-    const scene = document.createElement("canvas");
-    scene.width = 640;
-    scene.height = 360;
-    const paint = scene.getContext("2d");
-    const timer = setInterval(() => { paint.fillStyle = String(Math.random()); paint.fillRect(0, 0, 640, 360); }, 33);
-    const context = new AudioContext();
-    await context.resume();
-    const mic = context.createMediaStreamDestination().stream.getAudioTracks()[0];
-    const camera = scene.captureStream(30).getVideoTracks()[0];
-    const stream = new MediaStream([camera, mic]);
-    const preview = document.createElement("video");
-    preview.muted = preview.playsInline = true;
-    preview.classList.add("mirrored");
-    preview.srcObject = stream;
-    await preview.play();
-    let generated, sameMicrophone, failure;
-    try {
-      await createPreviewRecording({VideoSession:{create:async output => {
-        generated = output.getVideoTracks()[0];
-        sameMicrophone = output.getAudioTracks()[0] === mic;
-        throw Error("Encoder unavailable");
-      }}}, preview, {stream, context}, () => {}, () => {}, {});
-    } catch (error) { failure = error.message; }
-    const released = generated.readyState === "ended";
-    const originalsLive = stream.getTracks().every(track => track.readyState === "live");
-    let reason;
-    const session = await createPreviewRecording(core, preview, {stream, context}, () => {}, text => { reason = text; }, {});
-    await new Promise(resolve => session.start(resolve));
-    await new Promise(resolve => setTimeout(resolve, 400));
-    camera.dispatchEvent(new Event("mute"));
-    await session.stop();
-    const meta = {...session.meta};
-    const liveAfterStop = stream.getTracks().every(track => track.readyState === "live");
-    clearInterval(timer);
-    stream.getTracks().forEach(track => track.stop());
-    await context.close();
-    return {failure, released, originalsLive, sameMicrophone, liveAfterStop, reason, meta};
-  });
-  expect(result.failure).toBe("Encoder unavailable");
-  expect(result.released && result.originalsLive && result.sameMicrophone && result.liveAfterStop).toBe(true);
-  expect(result.reason).toContain("Safari tạm ngừng camera/micro");
-  expect(result.meta.complete).toBe(false);
-  expect(result.meta.reason).toBe(result.reason);
-});

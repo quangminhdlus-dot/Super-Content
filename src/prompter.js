@@ -1,6 +1,5 @@
 import {createStudioView} from "./prompter-view.js";
 import {createStudioReader} from "./prompter-reader.js";
-import {createPreviewRecording} from "./recording-video.js";
 import "./prompter.css";
 import {clipFile, clipName, confirmClipRemoval, exportClip, frameLabel, frameOrientation, loadVideoRuntime} from "./video-files.js";
 const defaults = { font: 38, anchor: 0, mode: "voice", wpm: 125, countdown: 3, framing: "portrait", framingVersion: 1, cover: 90 };
@@ -303,8 +302,8 @@ export function openPrompter(source, callbacks, initialContext) {
     usePhase("starting");
     const currentCapture = capture, token = ++request;
     try {
-      const recording = await createPreviewRecording(core, el.camera, currentCapture, () => {}, reason => { void stopRecording(reason); },
-        {owner:source.owner, contentId:source.id, title:source.title, framing:prefs.framing});
+      const recording = await core.VideoSession.create(currentCapture.stream, () => {}, reason => { void stopRecording(reason); },
+        {owner:source.owner, contentId:source.id, title:source.title, framing:prefs.framing}, currentCapture.context);
       if (destroyed || token !== request || capture !== currentCapture) { void recording.stop(); return; }
       session = recording;
       startTimeout = window.setTimeout(() => {

@@ -323,7 +323,7 @@ test("opens the script directly, adjusts the reader and saves a recoverable reco
       for (let x = 4; x < width - 4; x++) {
         if (Math.abs(x - width / 2) < 4) continue;
         const offset = (y * width + x) * 4;
-        const expected = x < width / 2 ? [38, 164, 113] : [224, 40, 40];
+        const expected = x < width / 2 ? [224, 40, 40] : [38, 164, 113];
         if (expected.some((value, channel) => Math.abs(data[offset + channel] - value) > 25)) unexpectedPixels++;
       }
     }
