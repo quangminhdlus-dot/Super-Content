@@ -600,8 +600,9 @@ export function openPrompter(source, callbacks, initialContext) {
     const segments = reader.load(core);
     voice = core.createVoice({
       segments,
-      active:() => active() && prefs.mode === "voice",
+      active:() => active() && prefs.mode === "voice" && reader.canFollow(),
       follow:reader.follow,
+      visibleRange:reader.visibleRange,
       phase:next => { voicePhase = next; maybeCountdown(); syncControls(); },
       semantic:ready => { semanticReady = ready; syncControls(); },
       voiceActivity:reader.activity,

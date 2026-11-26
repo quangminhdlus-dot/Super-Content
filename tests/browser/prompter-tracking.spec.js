@@ -1,0 +1,34 @@
+import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
+test('visible viewport, skip, reread and manual scroll use the real reader without media',async({page})=>{
+  await page.route('**/tracking-reader.js',route=>route.fulfill({contentType:'text/javascript',body:readFileSync(new URL('../../src/prompter-reader.js',import.meta.url),'utf8')}));
+  await page.goto('./');
+  const outcome=await page.evaluate(async()=>{
+    const {createStudioReader}=await import(new URL('tracking-reader.js',location.href));
+    const core=await import(new URL('prompter/runtime.js',location.href));
+    document.querySelectorAll('link[rel=stylesheet],style').forEach(node=>node.remove());
+    document.body.innerHTML='<div id="stage"><div id="scroll"><div id="script"></div></div><div id="guide"><button></button></div></div>';
+    const style=document.createElement('style');style.textContent='body{margin:0}#scroll{height:240px;width:320px;overflow:auto}#script{font:20px/30px sans-serif;padding-bottom:240px}#script>span{display:block;min-height:85px}';document.head.append(style);
+    const el=Object.fromEntries(['stage','scroll','script','guide'].map(id=>[id,document.getElementById(id)]));
+    const seeks=[],prefs={font:20,anchor:0,mode:'voice',wpm:125};
+    const reader=createStudioReader({overlay:el.stage,el,prefs,source:{text:Array.from({length:12},(_,i)=>'Nội dung số '+i+' giúp chúng ta phát triển.').join('\n')},listen:(el,event,fn)=>el.addEventListener(event,fn),active:()=>true,seek:i=>seeks.push(i),savePreferences:()=>{}});
+    reader.load(core);await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);
+    const initial=reader.visibleRange();
+    const advance=()=>{for(let i=0;i<160;i++)reader.move(performance.now()+i*16,16)};
+    reader.follow({index:2,progress:.8,source:'words',confidence:.96},0);advance();const forward=el.scroll.scrollTop;
+    reader.follow({index:0,progress:0,source:'words',confidence:.96},2);advance();const backward=el.scroll.scrollTop;
+    await new Promise(requestAnimationFrame);
+    el.scroll.dispatchEvent(new WheelEvent('wheel'));const paused=!reader.canFollow();el.scroll.scrollTop=610;el.scroll.dispatchEvent(new Event('scroll'));
+    await new Promise(resolve=>setTimeout(resolve,560));reader.move(performance.now(),16);
+    const manual=reader.visibleRange(),seek=seeks.at(-1),resumed=reader.canFollow();
+    const target=Math.min(manual.last,seek+1);reader.follow({index:target,progress:.6,source:'words',confidence:.96},seek);advance();
+    const followed=el.script.querySelector('.current').dataset.segment;
+    prefs.mode='manual';el.scroll.scrollTop=100;reader.move(performance.now(),16);const keptManual=el.scroll.scrollTop===100;
+    reader.destroy();return {initial,forward,backward,paused,manual,seek,resumed,target,followed,keptManual};
+  });
+  console.log(outcome);
+  expect(outcome.initial.first).toBe(0);expect(outcome.initial.last).toBeGreaterThanOrEqual(2);expect(outcome.initial.last).toBeLessThan(5);
+  expect(outcome.forward).toBeGreaterThan(100);expect(outcome.backward).toBeLessThan(2);
+  expect(outcome.paused).toBe(true);expect(outcome.resumed).toBe(true);expect(outcome.seek).toBeGreaterThan(4);expect(outcome.manual.first).toBeGreaterThan(3);
+  expect(Number(outcome.followed)).toBe(outcome.target);expect(outcome.keptManual).toBe(true);
+});

@@ -1,0 +1,27 @@
+// Build from the existing, verified embedded source tree. No media code is patched.
+import {readFile,writeFile,copyFile,readdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const app=fileURLToPath(new URL('../',import.meta.url));
+const root=path.resolve(process.argv[2]||path.join(app,'../capture-quality'));
+const hash=s=>createHash('sha256').update(s).digest('hex');
+const read=p=>readFile(p,'utf8').then(s=>s.replaceAll('\r\n','\n'));
+const protectedSources=JSON.parse(await read(new URL('./prompter-protected-sources.json',import.meta.url)));
+for(const [file,expected] of Object.entries(protectedSources))assert.equal(hash(await read(path.join(root,file))),expected,'Protected source differs: '+file);
+for(const [snapshot,target] of [['prompter-hosted.tsx','src/hosted.tsx'],['prompter-semantic.worker.ts','src/tracking/semantic.worker.ts']])await copyFile(new URL(snapshot,import.meta.url),path.join(root,target));
+let policy=path.relative(path.join(root,'src/tracking'),path.join(app,'src/prompter-guide.ts')).replaceAll('\\','/');
+await writeFile(path.join(root,'src/tracking/guide.ts'),`export * from '${policy}';\n`);
+const require=createRequire(path.join(root,'package.json'));
+const {build}=await import(pathToFileURL(require.resolve('vite')));
+const outDir=path.join(root,'dist-embedded');
+await build({configFile:path.join(root,'vite.config.ts'),root,mode:'web',publicDir:false,envPrefix:'SUPER_CONTENT_EMBED_UNUSED_',define:{'import.meta.env.BASE_URL':JSON.stringify('./prompter/')},build:{outDir,emptyOutDir:false,sourcemap:false,rollupOptions:{input:path.join(root,'src/hosted.tsx'),preserveEntrySignatures:'strict',output:{entryFileNames:'runtime.js'}},minify:'esbuild'}});
+const runtime=await read(path.join(outDir,'runtime.js'));
+const semantic=runtime.match(/semantic\.worker-[\w-]+\.js/)[0];
+await copyFile(path.join(outDir,'runtime.js'),path.join(app,'public/prompter/runtime.js'));
+await copyFile(path.join(outDir,'assets',semantic),path.join(app,'public/prompter/assets',semantic));
+const revision='tracking-'+hash(runtime+await read(path.join(outDir,'assets',semantic))).slice(0,20);
+await writeFile(path.join(app,'public/prompter/release.json'),JSON.stringify({revision})+'\n');
+console.log(JSON.stringify({revision,semantic,protectedMediaSourcesUnchanged:true}));

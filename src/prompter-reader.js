@@ -53,6 +53,22 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
   let pace = [], paceKey = "", fixedWords = 0;
   const grips = el.guide.querySelectorAll("button");
 
+  // Binary search layout offsets; only visible sentences plus one line of buffer.
+  function visibleRange() {
+    const buffer = prefs.font * 1.5;
+    const top = el.scroll.scrollTop - buffer;
+    const bottom = el.scroll.scrollTop + el.scroll.clientHeight + buffer;
+    let lo = 0, hi = offsets.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (offsets[mid].top + offsets[mid].height < top) lo = mid + 1;
+      else hi = mid;
+    }
+    const first = Math.min(lo, Math.max(0, offsets.length - 1));
+    while (lo < offsets.length && offsets[lo].top <= bottom) lo++;
+    return {first, last:Math.max(first, lo - 1)};
+  }
+
   function selectSegment(index) {
     if (index === activeSegment) return;
     activeSegment = index;
@@ -161,7 +177,7 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
     const backward = decision.index < before;
     const raw = top + decision.progress * distance;
     const goal = clamp(backward
-      ? Math.max(el.scroll.scrollTop - Math.min(44, row.height * .24), Math.min(raw, el.scroll.scrollTop))
+      ? Math.min(raw, el.scroll.scrollTop)
       : Math.max(previous?.index === decision.index && !previous.backward ? previous.goal : el.scroll.scrollTop, raw), 0, limit);
     selectSegment(decision.index);
     speechPath = {index: decision.index, at, top, distance, progress: decision.progress, rate, limit, goal, backward, confidence: decision.confidence};
@@ -236,6 +252,7 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
 
   const beginManual = () => {
     manualUntil = performance.now() + 500;
+    if (offsets.length) seek(segmentAtScroll());
     speechPath = undefined;
     el.script.style.translate = "";
     motion?.reset(el.scroll.scrollTop);
@@ -260,6 +277,8 @@ export function createStudioReader({overlay, el, prefs, source, listen, active, 
     load(runtime) { core = runtime; return renderScript(); },
     move: updatePrompter,
     follow,
+    visibleRange,
+    canFollow:() => performance.now() >= manualUntil,
     activity(now) { recentVoice = now; },
     measure,
     destroy() { resize.disconnect(); },

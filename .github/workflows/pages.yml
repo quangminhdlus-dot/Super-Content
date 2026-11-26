@@ -18,21 +18,33 @@ jobs:
       pages: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Detect tracking-only change
+        id: scope
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: node scripts/prompter-check-scope.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node --test tests/prompter-tracking.test.js
       - run: npm test
+        if: steps.scope.outputs.tracking_only != 'true'
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_RESEARCH_API_URL: ${{ vars.VITE_RESEARCH_API_URL }}
       - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/browser/prompter-tracking.spec.js --workers=1
       # Record real media sequentially; 4K performance is excluded on Linux CI.
       - run: npm run test:e2e -- --workers=1
+        if: steps.scope.outputs.tracking_only != 'true'
       - run: npm run test:sync
+        if: steps.scope.outputs.tracking_only != 'true'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

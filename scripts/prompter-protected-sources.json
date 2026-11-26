@@ -1,0 +1,8 @@
+{
+  "src/recording/capture.ts": "5624d3d9667eed7227c84f05a7338c290181a20ca9d257a3004f7f3700fbacf5",
+  "src/recording/recordingAudio.ts": "346b924b61c27261ae4e7cb77f2e694491f90c3405ebce9cc52924df49d60f01",
+  "src/recording/recorder.ts": "b99045285469ab7c1e4ec1fec653e32631135159fac080349043c17b3ee157d8",
+  "src/recognition/localEngine.ts": "cb8d47b1aa460362eede73842f33eb7980c887cf2a32ec1a37f8215ebf28b421",
+  "src/recognition/commercialSherpa.ts": "e895645f68a581e87f03e915dd25e197e4dcbb9a2135b5dbf345c5713a53f6c1",
+  "src/recognition/vosk.ts": "9ffea3aa0d11a56c9159ba18e73f8bfee5009b768e8a032d5a3aa29f63437612"
+}
